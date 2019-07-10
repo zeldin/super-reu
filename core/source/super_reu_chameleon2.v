@@ -99,7 +99,6 @@ module chameleon2 (
 
    // inout defaults
    assign low_a = 16'bZZZZZZZZZZZZZZZZ;
-   assign low_d = 8'bZZZZZZZZ;
    assign ram_d = 16'bZZZZZZZZZZZZZZZZ;
 
    // output defaults
@@ -117,15 +116,12 @@ module chameleon2 (
    assign clock_iow = 1'b1;
    assign dma_out = 1'b0;
    assign game_out = 1'b0;
-   assign exrom_out = 1'b0;
    assign irq_out = 1'b0;
    assign nmi_out = 1'b0;
    assign rw_out = 1'b0;
    assign sa_dir = 1'b0;
    assign sa_oe = 1'b0;
    assign sa15_out = 1'b0;
-   assign sd_dir = 1'b0;
-   assign sd_oe = 1'b0;
    assign ram_ldqm = 1'b0;
    assign ram_udqm = 1'b0;
    assign ram_ras = 1'b0;
@@ -179,6 +175,14 @@ module chameleon2 (
 					.ps2_mouse_clk(1'b0), .ps2_mouse_dat(1'b0),
 					.ps2_keyboard_clk(1'b0), .ps2_keyboard_dat(1'b0),
 					.led_green(green_led), .led_red(red_led));
+
+
+// EXROM
+
+   assign exrom_out = 1'b1;
+   assign sd_dir = 1'b1;
+   assign sd_oe = ~romlh;
+   assign low_d = romlh? low_a[15:8] ^ low_a[7:0] : 8'bZZZZZZZZ;
 
 
 // LED blinking
