@@ -19,6 +19,9 @@ TCL_INCLUDES += $(TCLPATH)/chameleon2_pins.tcl
 PROJECT_FILES  = $(SRCDIR)/super_reu_chameleon2.v
 PROJECT_FILES += $(SRCDIR)/super_reu_chameleon2.sdc
 
+# Cartridge "ROM"
+PROJECT_FILES += $(SRCDIR)/cart_bram.v
+
 # PLL50
 PROJECT_FILES += $(SRCDIR)/pll50.vhd
 
@@ -30,10 +33,12 @@ RTLFILES += $(RTLPATH)/chameleon/chameleon_led.vhd
 RTLFILES += $(RTLPATH)/chameleon/chameleon_phi_clock_a.vhd
 RTLFILES += $(RTLPATH)/chameleon/chameleon_phi_clock_e.vhd
 RTLFILES += $(RTLPATH)/chameleon/chameleon_old_sdram.vhd
+RTLFILES += $(RTLPATH)/chameleon/chameleon_spi_flash.vhd
 RTLFILES += $(RTLPATH)/chameleon/chameleon_usb.vhd
 
 # Chameleon2 edition specific
 RTLFILES += $(RTLPATH)/chameleon/chameleon2_io_shiftreg.vhd
+RTLFILES += $(RTLPATH)/chameleon/chameleon2_spi.vhd
 
 # Generic support entities
 RTLFILES += $(RTLPATH)/general/gen_pipeline.vhd
