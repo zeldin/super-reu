@@ -104,9 +104,6 @@ module chameleon2 (
 
    // output defaults
    assign ps2iec_sel = 1'b0;
-   assign ser_out_clk = 1'b0;
-   assign ser_out_dat = 1'b0;
-   assign ser_out_rclk = 1'b1;
    assign iec_clk_out = 1'b0;
    assign iec_srq_out = 1'b0;
    assign iec_atn_out = 1'b0;
@@ -129,7 +126,6 @@ module chameleon2 (
    assign sa15_out = 1'b0;
    assign sd_dir = 1'b0;
    assign sd_oe = 1'b0;
-   assign ram_clk = 1'b0;
    assign ram_ldqm = 1'b0;
    assign ram_udqm = 1'b0;
    assign ram_ras = 1'b0;
@@ -145,5 +141,60 @@ module chameleon2 (
    assign vsync_n = 1'b0;
    assign sigma_l = 1'b0;
    assign sigma_r = 1'b0;
+
+   // Clock signals
+   wire sysclk;
+   wire clk_locked;
+   wire ena_1mhz;
+   wire ena_1khz;
+
+   // Reset signals
+   wire reset;
+
+   // LED signals
+   reg 	green_led = 1'b0;
+   reg  red_led = 1'b0;
+
+
+// Clocks
+
+   pll50 pll_inst(.inclk0(clk50m), .c0(sysclk), .c3(ram_clk), .locked(clk_locked));
+
+   chameleon_1mhz #(.clk_ticks_per_usec(100))
+   clk1mhz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz));
+
+   chameleon_1khz clk1khz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz), .ena_1khz(ena_1khz));
+
+
+// Reset
+
+   gen_reset #(.resetCycles(131071))
+   reset_inst(.clk(sysclk), .button(~reset_btn), .reset(reset));
+
+// LED, PS2 and reset shiftregister
+
+   chameleon2_io_shiftreg shiftreg_inst(.clk(sysclk), .ser_out_clk(ser_out_clk),
+					.ser_out_dat(ser_out_dat), .ser_out_rclk(ser_out_rclk),
+					.reset_c64(reset), .reset_iec(1'b0),
+					.ps2_mouse_clk(1'b0), .ps2_mouse_dat(1'b0),
+					.ps2_keyboard_clk(1'b0), .ps2_keyboard_dat(1'b0),
+					.led_green(green_led), .led_red(red_led));
+
+
+// LED blinking
+
+   reg [8:0] cnt = 9'd0;
+
+   always @(posedge sysclk) begin
+      if (ena_1khz) begin
+	 if (cnt == 500) begin
+	    green_led <= ~green_led;
+	    cnt <= 0;
+	 end else begin
+	    cnt <= cnt+1;
+	 end
+      end
+   end
+					
 
 endmodule // chameleon2
