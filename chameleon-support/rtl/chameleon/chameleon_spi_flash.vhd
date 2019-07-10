@@ -108,8 +108,9 @@ architecture rtl of chameleon_spi_flash is
 		STATE_CS, STATE_CMD, STATE_AH, STATE_AM, STATE_AL, STATE_DUMMY,
 		STATE_OFFSH, STATE_OFFSM, STATE_OFFSL, STATE_END, STATE_DATA, STATE_INC);
 	signal state : state_t := STATE_IDLE;
+	signal inited_state : std_logic := '0';
 	signal header : std_logic := '1'; -- 1=reading header, 0=reading data
-	signal timer : unsigned(7 downto 0) := (others => '0');
+	signal timer : unsigned(7 downto 0) := to_unsigned(1, 8);
 	signal flash_a : unsigned(23 downto 0);
 
 	signal cs_n_reg : std_logic := '1';
@@ -129,6 +130,12 @@ begin
 	process(clk)
 	begin
 		if rising_edge(clk) then
+
+			if (inited_state = '0') then
+				state <= STATE_IDLE;
+				inited_state <= '1';
+			end if;
+
 			if (timer = 0) and (spi_req_reg = spi_ack) and (req_reg = ack) then
 				case state is
 				when STATE_IDLE =>
