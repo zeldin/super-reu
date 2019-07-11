@@ -19,6 +19,9 @@ TCL_INCLUDES += $(TCLPATH)/chameleon2_pins.tcl
 PROJECT_FILES  = $(SRCDIR)/super_reu_chameleon2.v
 PROJECT_FILES += $(SRCDIR)/super_reu_chameleon2.sdc
 
+# C64 bus
+PROJECT_FILES += $(SRCDIR)/bus_manager.v
+
 # Cartridge "ROM"
 PROJECT_FILES += $(SRCDIR)/cart_bram.v
 

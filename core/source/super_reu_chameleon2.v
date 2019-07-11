@@ -98,7 +98,6 @@ module chameleon2 (
 		   );
 
    // inout defaults
-   assign low_a = 16'bZZZZZZZZZZZZZZZZ;
    assign ram_d = 16'bZZZZZZZZZZZZZZZZ;
 
    // output defaults
@@ -111,13 +110,9 @@ module chameleon2 (
    assign mmc_cs = 1'b1;
    assign clock_ior = 1'b1;
    assign clock_iow = 1'b1;
-   assign dma_out = 1'b0;
    assign game_out = 1'b0;
    assign irq_out = 1'b0;
    assign nmi_out = 1'b0;
-   assign rw_out = 1'b0;
-   assign sa_dir = 1'b0;
-   assign sa_oe = 1'b0;
    assign sa15_out = 1'b0;
    assign ram_ldqm = 1'b0;
    assign ram_udqm = 1'b0;
@@ -173,19 +168,41 @@ module chameleon2 (
 					.led_green(green_led), .led_red(red_led));
 
 
+// Bus
+
+   wire        bus_ds_dir;
+   wire        bus_ds_en_n;
+   wire [0:7]  bus_d_q;
+   wire        bus_d_oe;
+   wire        bus_as_dir;
+   wire        bus_as_en_n;
+   wire [0:15] bus_a_q;
+   wire        bus_a_oe;
+
+   assign sd_dir = bus_ds_dir;
+   assign sd_oe = bus_ds_en_n;
+   assign low_d = bus_d_oe ? bus_d_q : 8'bZZZZZZZZ;
+
+   assign sa_dir = bus_as_dir;
+   assign sa_oe = bus_as_en_n;
+   assign low_a = bus_a_oe? bus_a_q : 16'bZZZZZZZZZZZZZZZZ;
+
+   bus_manager bus_manager_inst(.clk(sysclk),
+				.ds_dir(bus_ds_dir), .ds_en_n(bus_ds_en_n),
+				.d_d(low_d), .d_q(bus_d_q), .d_oe(bus_d_oe),
+				.as_dir(bus_as_dir), .as_en_n(bus_as_en_n),
+				.a_d(low_a), .a_q(bus_a_q), .a_oe(bus_a_oe),
+				.ba(ba_in), .ioef(ioef), .romlh(romlh),
+				.rw_in(rw_in), .rw_out(rw_out), .dma(dma_out),
+				.romlhdata(cart_read_data),
+				.romlh_r_strobe(cart_read_strobe));
+
 // EXROM
 
    assign exrom_out = 1'b1;
-   assign sd_dir = 1'b1;
-   assign sd_oe = ~romlh;
-   assign low_d = romlh? cart_read_data : 8'bZZZZZZZZ;
 
    wire [7:0] cart_read_data;
    wire	      cart_read_strobe;
-   reg        romlh1;
-   reg        romlh2;
-
-   assign     cart_read_strobe = romlh1 & ~romlh2;
 
    wire [13:0] flash_cart_a;
    wire [7:0]  flash_cart_q;
@@ -219,9 +236,6 @@ module chameleon2 (
 
 
    always @(posedge sysclk) begin
-      romlh1 <= romlh;
-      romlh2 <= romlh1;
-
       flash_cart_req_old <= flash_cart_req;
       flash_slot_valid_old <= flash_slot_valid;
       flash_load_busy_old <= flash_load_busy;
