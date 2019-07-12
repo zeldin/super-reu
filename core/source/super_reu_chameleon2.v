@@ -195,7 +195,23 @@ module chameleon2 (
 				.ba(ba_in), .ioef(ioef), .romlh(romlh),
 				.rw_in(rw_in), .rw_out(rw_out), .dma(dma_out),
 				.romlhdata(cart_read_data),
-				.romlh_r_strobe(cart_read_strobe));
+				.romlh_r_strobe(cart_read_strobe),
+				.ioefdata(io_read_data),
+				.ioef_r_strobe(io_read_strobe),
+				.ioef_w_strobe(io_write_strobe));
+
+// IO registers
+
+   wire [7:0]  io_read_data;
+   wire        io_read_strobe;
+   wire        io_write_strobe;
+
+   system_registers system_registers_inst(.clk(sysclk),
+					  .a(low_a[8:0]),
+					  .d_d(low_d), .d_q(io_read_data),
+					  .read_strobe(io_read_strobe),
+					  .write_strobe(io_write_strobe));
+
 
 // EXROM
 

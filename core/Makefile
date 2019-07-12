@@ -25,6 +25,9 @@ PROJECT_FILES += $(SRCDIR)/bus_manager.v
 # Cartridge "ROM"
 PROJECT_FILES += $(SRCDIR)/cart_bram.v
 
+# I/O registers
+PROJECT_FILES += $(SRCDIR)/system_registers.v
+
 # PLL50
 PROJECT_FILES += $(SRCDIR)/pll50.vhd
 
