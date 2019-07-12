@@ -1,12 +1,11 @@
 
 	.macpack cbm
 
+	.import screen, setrow, nextrow, dumpreg
+	.importzp vreg
 
-vscrn = $fa
-vreg  = $fc
 
-
-screen = $400
+	.code
 	
 	.word start
 	.word start
@@ -59,13 +58,13 @@ print_message:
 	sta $d011
 
 
+	;; Do some register I/O
 
 	lda #3
 	jsr setrow
 
 	lda #$91
 	sta $dea2
-
 
 	ldx #0
 @dumpdeloop:
@@ -75,78 +74,25 @@ print_message:
 	bcc @dumpdeloop
 
 
+	;; Holding pattern
+
 halt_here:	
 	inc $d020
 	jmp halt_here
 
 
+
+	;; Dump one register on page $DE00 and advance to the next row
+	;; A - scratch
+	;; X - in: low byte of register address (preserved)
+	;; Y - in: column to print at, out: set to 0
 dumpdereg:
 	lda #>$de00
 	jsr dumpreg
 	ldx vreg
 	jmp nextrow
 
-setrow:
-	ldy #>screen/4
-	sty vscrn+1
-	sta vscrn
-	asl a
-	asl a
-	adc vscrn
-	asl a
-	asl a
-	rol vscrn+1
-	asl a
-	rol vscrn+1
-	sta vscrn
-	ldy #0
-	rts
 
-nextrow:
-	clc
-	lda #40
-	adc vscrn
-	sta vscrn
-	bcc @nocarry
-	inc vscrn+1
-@nocarry:
-	ldy #0
-	rts
-
-dumpreg:
-	sta vreg+1
-	stx vreg
-	jsr printhex
-	lda vreg
-	jsr printhex
-	lda #':'
-	sta (vscrn),y
-	iny
-	lda #' '
-	sta (vscrn),y
-	iny
-	ldx #0
-	lda (vreg,x)
-
-printhex:
-	tax
-	lsr a
-	lsr a
-	lsr a
-	lsr a
-	jsr hexdigit
-	txa
-
-hexdigit:
-	and #$f
-	ora #'0'
-	cmp #10+'0'
-	bcc @numeral
-	sbc #'0'+9
-@numeral:
-	sta (vscrn),y
-	iny
-	rts
 
 vicinit:
 	.byte $0b
