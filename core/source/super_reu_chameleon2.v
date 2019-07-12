@@ -167,6 +167,45 @@ module chameleon2 (
 					.ps2_keyboard_clk(1'b0), .ps2_keyboard_dat(1'b0),
 					.led_green(green_led), .led_red(red_led));
 
+// USB microcontroller
+
+   wire [3:0]  slot;
+   wire        flash_slot_valid;
+
+   chameleon_usb usb_inst(.clk(sysclk), .flashslot({flash_slot_valid, slot}),
+			  .serial_clk(usart_clk), .serial_rxd(usart_tx),
+			  .serial_txd(usart_rx), .serial_cts_n(usart_rts));
+
+// SPI
+
+   wire        flash_spi_req;
+   wire        flash_spi_ack;
+   wire [7:0]  flash_spi_d;
+   wire [7:0]  flash_spi_q;
+
+   chameleon2_spi #(.clk_ticks_per_usec(100))
+   spi_inst(.clk(sysclk), .sclk(spi_clk), .miso(spi_miso), .mosi(spi_mosi),
+	    .req(flash_spi_req), .ack(flash_spi_ack), .speed(1'b0),
+	    .d(flash_spi_d), .q(flash_spi_q));
+
+// NOR flash
+
+   wire        start_flash_load;
+   wire        flash_load_busy;
+
+   wire [13:0] flash_cart_a;
+   wire [7:0]  flash_cart_q;
+   wire        flash_cart_req;
+   wire        flash_cart_ack;
+
+   chameleon_spi_flash #(.a_bits(14))
+   spi_flash_inst(.clk(sysclk), .slot(slot), .start(start_flash_load),
+		  .start_addr(16'h8000), .flash_offset(0),
+		  .amount(16'd8192), .busy(flash_load_busy),
+		  .cs_n(flash_cs), .spi_req(flash_spi_req),
+		  .spi_ack(flash_spi_ack), .spi_d(flash_spi_d),
+		  .spi_q(flash_spi_q), .req(flash_cart_req),
+		  .ack(flash_cart_ack), .a(flash_cart_a), .q(flash_cart_q));
 
 // Bus
 
@@ -220,10 +259,6 @@ module chameleon2 (
    wire [7:0] cart_read_data;
    wire	      cart_read_strobe;
 
-   wire [13:0] flash_cart_a;
-   wire [7:0]  flash_cart_q;
-   wire        flash_cart_req;
-   wire        flash_cart_ack;
    wire        cart_write_strobe;
 
    reg         flash_cart_req_old = 1'b0;
@@ -231,20 +266,10 @@ module chameleon2 (
    assign      cart_write_strobe = flash_cart_req_old ^ flash_cart_req;
    assign      flash_cart_ack = flash_cart_req;
 
-   wire        flash_spi_req;
-   wire        flash_spi_ack;
-   wire [7:0]  flash_spi_d;
-   wire [7:0]  flash_spi_q;
-
-   wire [4:0]  slot;
-   wire        start_flash_load;
-   wire        flash_slot_valid;
-   wire        flash_load_busy;
    reg         flash_slot_valid_old;
    reg 	       flash_load_busy_old;
 
    assign      start_flash_load = flash_slot_valid & ~flash_slot_valid_old;
-   assign      flash_slot_valid = slot[4];
 
    reg 	       rom_load_done = 1'b0;
 
@@ -266,23 +291,6 @@ module chameleon2 (
 		  .read_strobe(cart_read_strobe),
 		  .write_strobe(cart_write_strobe));
 
-   chameleon_spi_flash #(.a_bits(14))
-   spi_flash_inst(.clk(sysclk), .slot(slot), .start(start_flash_load),
-		  .start_addr(16'h8000), .flash_offset(0),
-		  .amount(16'd8192), .busy(flash_load_busy),
-		  .cs_n(flash_cs), .spi_req(flash_spi_req),
-		  .spi_ack(flash_spi_ack), .spi_d(flash_spi_d),
-		  .spi_q(flash_spi_q), .req(flash_cart_req),
-		  .ack(flash_cart_ack), .a(flash_cart_a), .q(flash_cart_q));
-
-   chameleon2_spi #(.clk_ticks_per_usec(100))
-   spi_inst(.clk(sysclk), .sclk(spi_clk), .miso(spi_miso), .mosi(spi_mosi),
-	    .req(flash_spi_req), .ack(flash_spi_ack), .speed(1'b0),
-	    .d(flash_spi_d), .q(flash_spi_q));
-
-   chameleon_usb usb_inst(.clk(sysclk), .flashslot(slot),
-			  .serial_clk(usart_clk), .serial_rxd(usart_tx),
-			  .serial_txd(usart_rx), .serial_cts_n(usart_rts));
 
 
 // LED blinking
