@@ -173,6 +173,7 @@ module chameleon2 (
    wire        flash_slot_valid;
 
    chameleon_usb usb_inst(.clk(sysclk), .flashslot({flash_slot_valid, slot}),
+			  .reconfig_slot(0), .reconfig(~usart_cts),
 			  .serial_clk(usart_clk), .serial_rxd(usart_tx),
 			  .serial_txd(usart_rx), .serial_cts_n(usart_rts));
 
