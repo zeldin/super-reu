@@ -39,7 +39,10 @@ module bus_manager (
 		    output[7:0] dma_q,
 		    input dma_rw,
 		    input dma_req,
-		    output dma_ack
+		    output dma_ack,
+
+		    // FF00 special
+		    output ff00_w_strobe
 		    );
 
    reg 	     ds_dir_reg = 1'b0;
@@ -82,10 +85,12 @@ module bus_manager (
    reg [7:0] ioef_filter;
    reg [1:0] ba_counter = 2'b00;
    reg [1:0] rw_in_log = 2'b11;
+   reg 	     ff00_w_strobe_reg;
 
    assign romlh_r_strobe = romlh_filter == 2'b01;
    assign ioef_r_strobe = (rw_in == 1'b1) & (ioef_filter[1:0] == 2'b01);
    assign ioef_w_strobe = (rw_in == 1'b0) & (ioef_filter == 8'b01111111);
+   assign ff00_w_strobe = ff00_w_strobe_reg;
 
    wire      ba_asserted;
    wire      cpu_stopped_by_ba;
@@ -159,11 +164,16 @@ module bus_manager (
 	    state <= 4'd2;
 	4'd2: // 0_00
 	  begin
+	     if ((rw_in == 1'b0) & (a_d == 16'hff00))
+	       ff00_w_strobe_reg <= 1'b1;
 	     rw_in_log <= { rw_in_log[0:0], rw_in | dma_reg };
 	     state <= 4'd3;
 	  end
 	4'd3: // 0_01
-	  state <= 4'd4;
+	  begin
+	     ff00_w_strobe_reg <= 1'b0;
+	     state <= 4'd4;
+	  end
 	4'd4: // 0_02
 	  begin
 	     ds_en_n_dma <= 1'b1;
