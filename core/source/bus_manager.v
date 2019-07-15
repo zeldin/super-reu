@@ -81,6 +81,7 @@ module bus_manager (
    reg [1:0] romlh_filter;
    reg [7:0] ioef_filter;
    reg [1:0] ba_counter = 2'b00;
+   reg [1:0] rw_in_log = 2'b11;
 
    assign romlh_r_strobe = romlh_filter == 2'b01;
    assign ioef_r_strobe = (rw_in == 1'b1) & (ioef_filter[1:0] == 2'b01);
@@ -88,11 +89,13 @@ module bus_manager (
 
    wire      ba_asserted;
    wire      cpu_stopped_by_ba;
+   wire      read_follows_write;
    assign    ba_asserted = ba_filter == 2'b00;
    assign    cpu_stopped_by_ba = ba_counter == 2'b11;
+   assign    read_follows_write = rw_in_log == 2'b01;
 
    wire      can_request_dma;
-   assign    can_request_dma = cpu_stopped_by_ba;
+   assign    can_request_dma = cpu_stopped_by_ba | read_follows_write;
 
 
    reg [3:0] state = 4'd0;
@@ -155,7 +158,10 @@ module bus_manager (
 	  else
 	    state <= 4'd2;
 	4'd2: // 0_00
-	  state <= 4'd3;
+	  begin
+	     rw_in_log <= { rw_in_log[0:0], rw_in | dma_reg };
+	     state <= 4'd3;
+	  end
 	4'd3: // 0_01
 	  state <= 4'd4;
 	4'd4: // 0_02
