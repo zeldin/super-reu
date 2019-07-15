@@ -152,6 +152,13 @@ module chameleon2 (
    chameleon_1khz clk1khz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz), .ena_1khz(ena_1khz));
 
 
+// PHI2
+
+   wire phi;
+
+   chameleon_phi_clock #(.phase_shift(8))
+   phi_clock_inst(.clk(sysclk), .phi2_n(phi2_n), .phiLocal(phi));
+
 // Reset
 
    gen_reset #(.resetCycles(131071))
@@ -227,7 +234,7 @@ module chameleon2 (
    assign sa_oe = bus_as_en_n;
    assign low_a = bus_a_oe? bus_a_q : 16'bZZZZZZZZZZZZZZZZ;
 
-   bus_manager bus_manager_inst(.clk(sysclk),
+   bus_manager bus_manager_inst(.clk(sysclk), .phi(phi),
 				.ds_dir(bus_ds_dir), .ds_en_n(bus_ds_en_n),
 				.d_d(low_d), .d_q(bus_d_q), .d_oe(bus_d_oe),
 				.as_dir(bus_as_dir), .as_en_n(bus_as_en_n),
@@ -238,7 +245,9 @@ module chameleon2 (
 				.romlh_r_strobe(cart_read_strobe),
 				.ioefdata(io_read_data),
 				.ioef_r_strobe(io_read_strobe),
-				.ioef_w_strobe(io_write_strobe));
+				.ioef_w_strobe(io_write_strobe),
+				.dma_a(16'h0000), .dma_d(8'h00),
+				.dma_rw(1'b0), .dma_req(1'b0), .dma_ack());
 
 // IO registers
 
