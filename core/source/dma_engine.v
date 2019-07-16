@@ -50,12 +50,16 @@ module dma_engine(
    assign dma_rw = dma_rw_reg;
    assign dma_req = dma_req_reg;
 
-   reg [(ram_a_reg_bits-1):0] ram_a_reg = 0;
+   reg [(ram_a_reg_bits-1):0] ram_a_reg = {ram_a_reg_bits{1'b0}};
+
+   reg [7:0]  ram_d_reg = 8'h00;
+   reg 	      ram_we_reg = 1'b0;
+   reg 	      ram_req_reg = 1'b0;
 
    assign ram_a = ram_a_reg[(ram_a_bits-1):0];
-   assign ram_d = 8'h00;
-   assign ram_we = 1'b0;
-   assign ram_req = 1'b0;
+   assign ram_d = ram_d_reg;
+   assign ram_we = ram_we_reg;
+   assign ram_req = ram_req_reg;
 
    reg        irq_eob = 1'b0;
    reg 	      irq_fault = 1'b0;
@@ -73,6 +77,11 @@ module dma_engine(
    wire       irq_pending;
    assign     irq_pending = (irq_eob & im_eob) | (irq_fault & im_fault);
 
+   reg [3:0]  state  = 4'b0000;
+   reg [15:0] dma_a_save;
+   reg [(ram_a_reg_bits-1):0] ram_a_save;
+   reg [15:0] tcnt_save;
+
    always @(posedge clk) begin
 
       if (reset) begin
@@ -80,6 +89,7 @@ module dma_engine(
 	 dma_req_reg <= dma_ack;
 
 	 ram_a_reg <= def_ram_addr[(ram_a_reg_bits-1):0];
+	 ram_req_reg <= ram_ack;
 
 	 irq_eob <= 1'b0;
 	 irq_fault <= 1'b0;
@@ -93,6 +103,8 @@ module dma_engine(
 	 im_fault <= 1'b0;
 	 fix_dma_a <= 1'b0;
 	 fix_ram_a <= 1'b0;
+
+	 state <= 4'b0000;
       end // if (reset)
       else begin
 
@@ -145,6 +157,133 @@ module dma_engine(
 	      end
 	    endcase
 	 end // if (write_strobe)
+
+	 case (state)
+	   4'b0000: begin
+	      if ((write_strobe & (a[3:0] == 4'h1) & d_d[7] & d_d[4]) |
+		  (ff00_strobe & execute & ~ff00)) begin
+		 dma_a_save <= dma_a_reg;
+		 ram_a_save <= ram_a_reg;
+		 tcnt_save <= tcnt;
+		 if ((ff00_strobe? ttype[0] : d_d[0])) begin
+		    ram_req_reg <= ~ram_req_reg;  // read RAM first
+		    ram_we_reg <= 1'b0;
+		 end else begin
+		    dma_req_reg <= ~dma_req_reg;  // read DMA first
+		    dma_rw_reg <= 1'b0;
+		 end
+		 state <= {1'b1, (ff00_strobe? ttype : d_d[1:0]), 1'b0};
+	      end
+	   end
+	   4'b0001: begin
+	      if (tcnt == 16'h0001) begin
+		 execute <= 1'b0;
+		 irq_eob <= 1'b1;
+		 state <= 4'b0000;
+		 if (load) begin
+		    dma_a_reg <= dma_a_save;
+		    ram_a_reg <= ram_a_save;
+		    tcnt <= tcnt_save;
+		 end
+	      end else begin
+		 tcnt <= tcnt - 1;
+		 if (ttype[0]) begin
+		    ram_req_reg <= ~ram_req_reg;  // read RAM first
+		    ram_we_reg <= 1'b0;
+		 end else begin
+		    dma_req_reg <= ~dma_req_reg;  // read DMA first
+		    dma_rw_reg <= 1'b0;
+		 end
+		 state <= {1'b1, ttype, 1'b0};
+	      end
+	   end
+	   4'b1000: // C64 -> RAM step 1
+	     if (dma_req_reg == dma_ack) begin
+		if (~fix_dma_a)
+		  dma_a_reg <= dma_a_reg + 1;
+		ram_d_reg <= dma_q;
+		ram_we_reg <= 1'b1;
+		ram_req_reg <= ~ram_req_reg;
+		state <= 4'b1001;
+	     end
+	   4'b1001: // C64 -> RAM step 2
+	     if (ram_req_reg == ram_ack) begin
+		if (~fix_ram_a)
+		  ram_a_reg <= ram_a_reg + 1;
+		state <= 4'b0001;
+	     end
+	   4'b1010: // C64 <- RAM step 1
+	     if (ram_req_reg == ram_ack) begin
+		if (~fix_ram_a)
+		  ram_a_reg <= ram_a_reg + 1;
+		dma_d_reg <= ram_q;
+		dma_rw_reg <= 1'b1;
+		dma_req_reg <= ~dma_req_reg;
+		state <= 4'b1011;
+	     end
+	   4'b1011: // C64 <- RAM step 2
+	     if (dma_req_reg == dma_ack) begin
+		if (~fix_dma_a)
+		  dma_a_reg <= dma_a_reg + 1;
+		state <= 4'b0001;
+	     end
+	   4'b1100: // swap step 1
+	     if (dma_req_reg == dma_ack) begin
+		ram_d_reg <= dma_q;
+		ram_we_reg <= 1'b0;
+		ram_req_reg <= ~ram_req_reg;
+		state <= 4'b1101;
+	     end
+	   4'b1101: // swap step 2
+	     if (ram_req_reg == ram_ack) begin
+		dma_d_reg <= ram_q;
+		dma_rw_reg <= 1'b1;
+		dma_req_reg <= ~dma_req_reg;
+		state <= 4'b0100;
+	     end
+	   4'b0100: // swap step 3
+	     if (dma_req_reg == dma_ack) begin
+		if (~fix_dma_a)
+		  dma_a_reg <= dma_a_reg + 1;
+		ram_we_reg <= 1'b1;
+		ram_req_reg <= ~ram_req_reg;
+		state <= 4'b0101;
+	     end
+	   4'b0101: // swap step 4
+	     if (ram_req_reg == ram_ack) begin
+		if (~fix_ram_a)
+		  ram_a_reg <= ram_a_reg + 1;
+		state <= 4'b0001;
+	     end
+	   4'b1110: // verify step 1
+	     if (dma_req_reg == dma_ack) begin
+		ram_d_reg <= dma_q;
+		ram_we_reg <= 1'b0;
+		ram_req_reg <= ~ram_req_reg;
+		state <= 4'b1111;
+	     end
+	   4'b1111: // verify step 2
+	     if (ram_req_reg == ram_ack) begin
+		if (ram_q == ram_d_reg) begin
+		   if (~fix_dma_a)
+		     dma_a_reg <= dma_a_reg + 1;
+		   if (~fix_ram_a)
+		     ram_a_reg <= ram_a_reg + 1;
+		   state <= 4'b0001;
+		end else begin
+		   execute <= 1'b0;
+		   irq_fault <= 1'b1;
+		   if (load) begin
+		      // This is stupid, but compatible...
+		      dma_a_reg <= dma_a_save;
+		      ram_a_reg <= ram_a_save;
+		      tcnt <= tcnt_save;
+		   end else
+		   state <= 4'b0000;
+		end
+	     end
+
+	 endcase // case (state)
 
       end // else: !if(reset)
    end // always @ (posedge clk)

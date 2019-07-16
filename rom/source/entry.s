@@ -64,10 +64,51 @@ print_message:
 	lda #$91
 	sta $dea2
 
+	lda #$ff
+	ldx #16
+@init_row:
+	sta screen+40,x
+	dex
+	bpl @init_row
+	
 	lda #<(screen+7)
 	sta $df02
 	lda #>(screen+8)
 	sta $df03
+
+	lda #$40
+	sta $df09
+	
+	lda #0
+	sta $df04
+	sta $df05
+	sta $df06
+
+	lda #7
+	sta $df07
+	lda #0
+	sta $df08
+
+	lda #$b0
+	sta $df01
+
+@waitdma1:
+	inc $d020
+	lda $df00
+	bpl @waitdma1
+
+	lda #<(screen+42)
+	sta $df02
+	lda #>(screen+42)
+	sta $df03
+	lda #$91
+	sta $df01
+
+@waitdma2:
+	inc $d020
+	lda $df00
+	bpl @waitdma2
+
 	
 	lda #3
 	jsr setrow
