@@ -118,18 +118,35 @@ module bus_manager (
 	 ds_dir_reg  <= 1'b1;
 	 ds_en_n_reg <= 1'b0;
 	 d_oe_reg    <= 1'b1;
-	 d_q_reg     <= romlhdata;
+	 if (rw_in)
+	   d_q_reg   <= romlhdata;
 	 as_dir_reg  <= 1'b0;
 	 as_en_n_reg <= 1'b0;
 	 a_oe_reg    <= 1'b0;
+	 if (dma_reg) begin
+	    as_dir_reg  <= as_dir_dma;
+	    as_en_n_reg <= as_en_n_dma;
+	    a_oe_reg    <= a_oe_dma;
+	    ds_dir_reg  <= ds_dir_dma;
+	    ds_en_n_reg <= 1'b1;
+	 end
       end else if (ioef_filter[1:0] == 2'b11) begin
 	 ds_dir_reg  <= rw_in;
 	 ds_en_n_reg <= 1'b0;
 	 d_oe_reg    <= rw_in;
-	 d_q_reg     <= ioefdata;
+	 if (rw_in)
+	   d_q_reg   <= ioefdata;
 	 as_dir_reg  <= 1'b0;
 	 as_en_n_reg <= 1'b0;
 	 a_oe_reg    <= 1'b0;
+	 if (dma_reg) begin
+	    as_dir_reg  <= as_dir_dma;
+	    as_en_n_reg <= as_en_n_dma;
+	    a_oe_reg    <= a_oe_dma;
+	    ds_dir_reg  <= ds_dir_dma;
+	    ds_en_n_reg <= 1'b1;
+	    d_oe_reg    <= 1'b1;
+	 end
       end else begin
 	 ds_dir_reg  <= ds_dir_dma;
 	 ds_en_n_reg <= ds_en_n_dma;
