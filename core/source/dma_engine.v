@@ -13,7 +13,14 @@ module dma_engine(
 		  input [7:0]   dma_q,
 		  output        dma_rw,
 		  output        dma_req,
-		  input         dma_ack
+		  input         dma_ack,
+
+		  output[ram_a_bits:0] ram_a,
+		  output[7:0] ram_d,
+		  input[7:0] ram_q,
+		  output ram_we,
+		  output ram_req,
+		  input ram_ack
 		  );
 
    parameter ram_a_bits = 17;  // 17-24
@@ -44,6 +51,11 @@ module dma_engine(
    assign dma_req = dma_req_reg;
 
    reg [(ram_a_reg_bits-1):0] ram_a_reg = 0;
+
+   assign ram_a = ram_a_reg[(ram_a_bits-1):0];
+   assign ram_d = 8'h00;
+   assign ram_we = 1'b0;
+   assign ram_req = 1'b0;
 
    reg        irq_eob = 1'b0;
    reg 	      irq_fault = 1'b0;

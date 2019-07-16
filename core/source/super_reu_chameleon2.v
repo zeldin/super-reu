@@ -97,9 +97,6 @@ module chameleon2 (
 		   output sigma_r
 		   );
 
-   // inout defaults
-   assign ram_d = 16'bZZZZZZZZZZZZZZZZ;
-
    // output defaults
    assign ps2iec_sel = 1'b0;
    assign iec_clk_out = 1'b0;
@@ -114,13 +111,6 @@ module chameleon2 (
    assign irq_out = 1'b0;
    assign nmi_out = 1'b0;
    assign sa15_out = 1'b0;
-   assign ram_ldqm = 1'b0;
-   assign ram_udqm = 1'b0;
-   assign ram_ras = 1'b0;
-   assign ram_cas = 1'b0;
-   assign ram_we = 1'b0;
-   assign ram_ba = 2'b00;
-   assign ram_a = 13'b0000000000000;
    assign red = 5'b00000;
    assign grn = 5'b00000;
    assign blu = 5'b00000;
@@ -131,6 +121,7 @@ module chameleon2 (
 
    // Clock signals
    wire sysclk;
+   wire clk_150;
    wire clk_locked;
    wire ena_1mhz;
    wire ena_1khz;
@@ -144,7 +135,7 @@ module chameleon2 (
 
 // Clocks
 
-   pll50 pll_inst(.inclk0(clk50m), .c0(sysclk), .c3(ram_clk), .locked(clk_locked));
+   pll50 pll_inst(.inclk0(clk50m), .c0(sysclk), .c2(clk_150), .c3(ram_clk), .locked(clk_locked));
 
    chameleon_1mhz #(.clk_ticks_per_usec(100))
    clk1mhz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz));
@@ -214,6 +205,29 @@ module chameleon2 (
 		  .spi_ack(flash_spi_ack), .spi_d(flash_spi_d),
 		  .spi_q(flash_spi_q), .req(flash_cart_req),
 		  .ack(flash_cart_ack), .a(flash_cart_a), .q(flash_cart_q));
+
+// SDRAM
+
+   wire        sdram_req;
+   wire        sdram_ack;
+   wire        sdram_we;
+   wire [23:0] sdram_a;
+   wire [7:0]  sdram_d;
+   wire [7:0]  sdram_q;
+
+   chameleon_sdram #(.colAddrBits(9), .rowAddrBits(13),
+		     .enable_cpu6510_port("true"),
+                     .casLatency(3), .ras_cycles(2), .precharge_cycles(2),
+                     .t_clk_ns(6.7))
+   sdram_inst(.clk(clk_150), .reserve(0),
+	      .sd_data(ram_d), .sd_addr(ram_a), .sd_we_n(ram_we),
+	      .sd_ras_n(ram_ras), .sd_cas_n(ram_cas),
+	      .sd_ba_0(ram_ba[0]), .sd_ba_1(ram_ba[1]),
+	      .sd_ldqm(ram_ldqm), .sd_udqm(ram_udqm),
+	      .cpu6510_req(sdram_req), .cpu6510_ack(sdram_ack),
+	      .cpu6510_we(sdram_we), .cpu6510_a({1'b1, sdram_a}),
+	      .cpu6510_d(sdram_d), .cpu6510_q(sdram_q));
+
 
 // Bus
 
@@ -294,7 +308,9 @@ module chameleon2 (
 		   .ff00_strobe(ff00_write_strobe),
 		   .dma_a(io_dma_a), .dma_d(io_dma_d),
 		   .dma_q(io_dma_q), .dma_rw(io_dma_rw),
-		   .dma_req(io_dma_req), .dma_ack(io_dma_ack));
+		   .dma_req(io_dma_req), .dma_ack(io_dma_ack),
+		   .ram_a(sdram_a), .ram_d(sdram_d), .ram_q(sdram_q),
+		   .ram_we(sdram_we), .ram_req(sdram_req), .ram_ack(sdram_ack));
 
 
 // EXROM
