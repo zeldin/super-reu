@@ -60,11 +60,17 @@ print_message:
 
 	;; Do some register I/O
 
-	lda #3
-	jsr setrow
 
 	lda #$91
 	sta $dea2
+
+	lda #<(screen+7)
+	sta $df02
+	lda #>(screen+8)
+	sta $df03
+	
+	lda #3
+	jsr setrow
 
 	ldx #0
 @dumpdeloop:
@@ -72,6 +78,17 @@ print_message:
 	inx
 	cpx #8
 	bcc @dumpdeloop
+
+	lda #3
+	jsr setrow
+
+	ldx #0
+@dumpdfloop:
+	ldy #20
+	jsr dumpdfreg
+	inx
+	cpx #16
+	bcc @dumpdfloop
 
 
 	;; Holding pattern
@@ -92,6 +109,15 @@ dumpdereg:
 	ldx vreg
 	jmp nextrow
 
+	;; Dump one register on page $DF00 and advance to the next row
+	;; A - scratch
+	;; X - in: low byte of register address (preserved)
+	;; Y - in: column to print at, out: set to 0
+dumpdfreg:
+	lda #>$df00
+	jsr dumpreg
+	ldx vreg
+	jmp nextrow
 
 
 vicinit:

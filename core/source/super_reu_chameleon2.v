@@ -246,20 +246,52 @@ module chameleon2 (
 				.ioefdata(io_read_data),
 				.ioef_r_strobe(io_read_strobe),
 				.ioef_w_strobe(io_write_strobe),
-				.dma_a(16'h0000), .dma_d(8'h00),
-				.dma_rw(1'b0), .dma_req(1'b0), .dma_ack());
+				.ff00_w_strobe(ff00_write_strobe),
+				.dma_a(io_dma_a), .dma_d(io_dma_d),
+				.dma_q(io_dma_q), .dma_rw(io_dma_rw),
+				.dma_req(io_dma_req), .dma_ack(io_dma_ack));
 
 // IO registers
 
    wire [7:0]  io_read_data;
    wire        io_read_strobe;
    wire        io_write_strobe;
+   wire        ff00_write_strobe;
 
-   system_registers system_registers_inst(.clk(sysclk),
-					  .a(low_a[8:0]),
-					  .d_d(low_d), .d_q(io_read_data),
-					  .read_strobe(io_read_strobe),
-					  .write_strobe(io_write_strobe));
+   wire [15:0] io_dma_a;
+   wire [7:0]  io_dma_d;
+   wire [7:0]  io_dma_q;
+   wire        io_dma_rw;
+   wire        io_dma_req;
+   wire        io_dma_ack;
+
+   wire [7:0]  io_read_data_sys;
+   wire [7:0]  io_read_data_dma;
+   wire        io_read_stobe_sys;
+   wire        io_read_stobe_dma;
+   wire        io_write_stobe_sys;
+   wire        io_write_stobe_dma;
+
+   assign io_read_data = (low_a[8]? io_read_data_dma : io_read_data_sys);
+   assign io_read_strobe_sys = io_read_strobe & ~low_a[8];
+   assign io_write_strobe_sys = io_write_strobe & ~low_a[8];
+   assign io_read_strobe_dma = io_read_strobe & low_a[8];
+   assign io_write_strobe_dma = io_write_strobe & low_a[8];
+
+   system_registers system_registers_inst(.clk(sysclk), .a(low_a[7:0]),
+					  .d_d(low_d), .d_q(io_read_data_sys),
+					  .read_strobe(io_read_strobe_sys),
+					  .write_strobe(io_write_strobe_sys));
+
+   dma_engine #(.ram_a_bits(24))
+   dma_engine_inst(.clk(sysclk), .reset(reset),
+		   .a(low_a[7:0]), .d_d(low_d), .d_q(io_read_data_dma),
+		   .read_strobe(io_read_strobe_dma),
+		   .write_strobe(io_write_strobe_dma),
+		   .ff00_strobe(ff00_write_strobe),
+		   .dma_a(io_dma_a), .dma_d(io_dma_d),
+		   .dma_q(io_dma_q), .dma_rw(io_dma_rw),
+		   .dma_req(io_dma_req), .dma_ack(io_dma_ack));
 
 
 // EXROM

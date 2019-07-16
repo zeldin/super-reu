@@ -27,6 +27,7 @@ PROJECT_FILES += $(SRCDIR)/cart_bram.v
 
 # I/O registers
 PROJECT_FILES += $(SRCDIR)/system_registers.v
+PROJECT_FILES += $(SRCDIR)/dma_engine.v
 
 # PLL50
 PROJECT_FILES += $(SRCDIR)/pll50.vhd

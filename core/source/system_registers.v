@@ -1,6 +1,6 @@
 module system_registers(
 			input clk,
-			input[8:0] a,
+			input[7:0] a,
 			input[7:0] d_d,
 			output[7:0] d_q,
 			input read_strobe,
