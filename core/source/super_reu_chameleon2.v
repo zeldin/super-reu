@@ -272,11 +272,14 @@ module chameleon2 (
    wire        io_write_stobe_sys;
    wire        io_write_stobe_dma;
 
-   assign io_read_data = (low_a[8]? io_read_data_dma : io_read_data_sys);
-   assign io_read_strobe_sys = io_read_strobe & ~low_a[8];
-   assign io_write_strobe_sys = io_write_strobe & ~low_a[8];
-   assign io_read_strobe_dma = io_read_strobe & low_a[8];
-   assign io_write_strobe_dma = io_write_strobe & low_a[8];
+   address_decoder #(.a_bits(9), .devices(2),
+		     .base_addresses({16'hde00, 16'hdf00}),
+		     .aperture_widths({4'd8, 4'd8}))
+   io_address_decoder_impl(.a(low_a[8:0]), .read_strobe(io_read_strobe),
+			   .write_strobe(io_write_strobe), .read_data(io_read_data),
+			   .read_strobes({io_read_strobe_sys, io_read_strobe_dma}),
+			   .write_strobes({io_write_strobe_sys, io_write_strobe_dma}),
+			   .read_datas({io_read_data_sys, io_read_data_dma}));
 
    system_registers system_registers_inst(.clk(sysclk), .a(low_a[7:0]),
 					  .d_d(low_d), .d_q(io_read_data_sys),

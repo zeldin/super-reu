@@ -26,6 +26,7 @@ PROJECT_FILES += $(SRCDIR)/bus_manager.v
 PROJECT_FILES += $(SRCDIR)/cart_bram.v
 
 # I/O registers
+PROJECT_FILES += $(SRCDIR)/address_decoder.v
 PROJECT_FILES += $(SRCDIR)/system_registers.v
 PROJECT_FILES += $(SRCDIR)/dma_engine.v
 
