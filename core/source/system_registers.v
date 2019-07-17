@@ -1,6 +1,6 @@
 module system_registers(
 			input clk,
-			input[7:0] a,
+			input[3:0] a,
 			input[7:0] d_d,
 			output[7:0] d_q,
 			input read_strobe,
@@ -29,7 +29,7 @@ module system_registers(
       end
 
       if (write_strobe) begin
-	 last_write_addr <= a[7:0];
+	 last_write_addr <= { 4'b0000, a[3:0] };
 	 last_write_data <= d_d;
 
 	 case (a[3:0])

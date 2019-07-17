@@ -104,7 +104,6 @@ module chameleon2 (
    assign iec_atn_out = 1'b0;
    assign iec_dat_out = 1'b0;
    assign rtc_cs = 1'b0;
-   assign mmc_cs = 1'b1;
    assign clock_ior = 1'b1;
    assign clock_iow = 1'b1;
    assign game_out = 1'b0;
@@ -187,14 +186,18 @@ module chameleon2 (
 // SPI
 
    wire        flash_spi_req;
-   wire        flash_spi_ack;
+   wire        mmc64_spi_req;
+   wire        spi_ack;
+   wire        spi_speed;
    wire [7:0]  flash_spi_d;
-   wire [7:0]  flash_spi_q;
+   wire [7:0]  mmc64_spi_d;
+   wire [7:0]  spi_q;
 
    chameleon2_spi #(.clk_ticks_per_usec(100))
    spi_inst(.clk(sysclk), .sclk(spi_clk), .miso(spi_miso), .mosi(spi_mosi),
-	    .req(flash_spi_req), .ack(flash_spi_ack), .speed(1'b0),
-	    .d(flash_spi_d), .q(flash_spi_q));
+	    .req(rom_load_done? mmc64_spi_req : flash_spi_req),
+	    .ack(spi_ack), .speed(spi_speed),
+	    .d(rom_load_done? mmc64_spi_d : flash_spi_d), .q(spi_q));
 
 // NOR flash
 
@@ -211,8 +214,8 @@ module chameleon2 (
 		  .start_addr(16'h8000), .flash_offset(0),
 		  .amount(16'd8192), .busy(flash_load_busy),
 		  .cs_n(flash_cs), .spi_req(flash_spi_req),
-		  .spi_ack(flash_spi_ack), .spi_d(flash_spi_d),
-		  .spi_q(flash_spi_q), .req(flash_cart_req),
+		  .spi_ack(spi_ack), .spi_d(flash_spi_d),
+		  .spi_q(spi_q), .req(flash_cart_req),
 		  .ack(flash_cart_ack), .a(flash_cart_a), .q(flash_cart_q));
 
 // SDRAM
@@ -290,25 +293,36 @@ module chameleon2 (
    wire        io_dma_ack;
 
    wire [7:0]  io_read_data_sys;
+   wire [7:0]  io_read_data_mmc64;
    wire [7:0]  io_read_data_dma;
    wire        io_read_stobe_sys;
+   wire        io_read_stobe_mmc64;
    wire        io_read_stobe_dma;
    wire        io_write_stobe_sys;
+   wire        io_write_stobe_mmc64;
    wire        io_write_stobe_dma;
 
-   address_decoder #(.a_bits(9), .devices(2),
-		     .base_addresses({16'hde00, 16'hdf00}),
-		     .aperture_widths({4'd8, 4'd8}))
+   address_decoder #(.a_bits(9), .devices(3),
+		     .base_addresses({16'hde00, 16'hde10, 16'hdf00}),
+		     .aperture_widths({4'd4, 4'd4, 4'd8}))
    io_address_decoder_impl(.a(low_a[8:0]), .read_strobe(io_read_strobe),
 			   .write_strobe(io_write_strobe), .read_data(io_read_data),
-			   .read_strobes({io_read_strobe_sys, io_read_strobe_dma}),
-			   .write_strobes({io_write_strobe_sys, io_write_strobe_dma}),
-			   .read_datas({io_read_data_sys, io_read_data_dma}));
+			   .read_strobes({io_read_strobe_sys, io_read_strobe_mmc64, io_read_strobe_dma}),
+			   .write_strobes({io_write_strobe_sys, io_write_strobe_mmc64, io_write_strobe_dma}),
+			   .read_datas({io_read_data_sys, io_read_data_mmc64, io_read_data_dma}));
 
-   system_registers system_registers_inst(.clk(sysclk), .a(low_a[7:0]),
+   system_registers system_registers_inst(.clk(sysclk), .a(low_a[3:0]),
 					  .d_d(low_d), .d_q(io_read_data_sys),
 					  .read_strobe(io_read_strobe_sys),
 					  .write_strobe(io_write_strobe_sys));
+
+   mmc64 mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),
+		    .d_q(io_read_data_mmc64), .read_strobe(io_read_strobe_mmc64),
+		    .write_strobe(io_write_strobe_mmc64),
+		    .spi_q(spi_q), .spi_d(mmc64_spi_d), .spi_req(mmc64_spi_req),
+		    .spi_speed(spi_speed), .spi_ack(spi_ack), .wp(mmc_wp),
+		    .cd(mmc_cd), .spi_cs(mmc_cs),
+		    .exrom(~exrom_out), .game(~game_out));
 
    dma_engine #(.ram_a_bits(24))
    dma_engine_inst(.clk(sysclk), .reset(reset), .irq(irq_out_dma),
@@ -334,14 +348,12 @@ module chameleon2 (
 
    reg         flash_cart_req_old = 1'b0;
 
-   assign      cart_write_strobe = flash_cart_req_old ^ flash_cart_req;
+   assign      cart_write_strobe = (flash_cart_req_old ^ flash_cart_req) & ~rom_load_done;
    assign      flash_cart_ack = flash_cart_req;
 
-   reg         flash_slot_valid_old;
-   reg 	       flash_load_busy_old;
+   assign      start_flash_load = flash_slot_valid & ~rom_load_done & ~flash_load_busy;
 
-   assign      start_flash_load = flash_slot_valid & ~flash_slot_valid_old;
-
+   reg 	       rom_load_started = 1'b0;
    reg 	       rom_load_done = 1'b0;
 
    assign      red_led = ~rom_load_done;
@@ -349,10 +361,9 @@ module chameleon2 (
 
    always @(posedge sysclk) begin
       flash_cart_req_old <= flash_cart_req;
-      flash_slot_valid_old <= flash_slot_valid;
-      flash_load_busy_old <= flash_load_busy;
-
-      if (flash_load_busy_old & ~flash_load_busy)
+      if (start_flash_load)
+	rom_load_started <= 1'b1;
+      if (rom_load_started & ~flash_load_busy)
 	rom_load_done <= 1'b1;
    end
 
