@@ -32,6 +32,16 @@ init_vic_loop:
 	bne init_vic_loop
 	lda #3
 	sta $dd00
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
+	lda $dc0d
+	lda $dd0d
+	lda #<irq_handler
+	sta $314
+	lda #>irq_handler
+	sta $315
+	cli
 
 clear_screen:
 	lda #$20
@@ -241,4 +251,9 @@ vicinit:
 message:
 	scrcode "hello, this is exrom code."
 message_length = * - message
+
+
+irq_handler:
+	inc $d021
+	jmp irq_handler
 

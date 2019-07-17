@@ -108,7 +108,6 @@ module chameleon2 (
    assign clock_ior = 1'b1;
    assign clock_iow = 1'b1;
    assign game_out = 1'b0;
-   assign irq_out = 1'b0;
    assign nmi_out = 1'b0;
    assign sa15_out = 1'b0;
    assign red = 5'b00000;
@@ -154,6 +153,16 @@ module chameleon2 (
 
    gen_reset #(.resetCycles(131071))
    reset_inst(.clk(sysclk), .button(~reset_btn), .reset(reset));
+
+// IRQ
+
+   reg 	irq_reg;
+   assign irq_out = irq_reg;
+
+   always @(posedge sysclk) begin
+      irq_reg <= irq_out_dma;
+   end
+
 
 // LED, PS2 and reset shiftregister
 
@@ -271,6 +280,7 @@ module chameleon2 (
    wire        io_read_strobe;
    wire        io_write_strobe;
    wire        ff00_write_strobe;
+   wire        irq_out_dma;
 
    wire [15:0] io_dma_a;
    wire [7:0]  io_dma_d;
@@ -301,7 +311,7 @@ module chameleon2 (
 					  .write_strobe(io_write_strobe_sys));
 
    dma_engine #(.ram_a_bits(24))
-   dma_engine_inst(.clk(sysclk), .reset(reset),
+   dma_engine_inst(.clk(sysclk), .reset(reset), .irq(irq_out_dma),
 		   .a(low_a[7:0]), .d_d(low_d), .d_q(io_read_data_dma),
 		   .read_strobe(io_read_strobe_dma),
 		   .write_strobe(io_write_strobe_dma),

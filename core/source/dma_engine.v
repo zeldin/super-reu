@@ -1,6 +1,7 @@
 module dma_engine(
 		  input clk,
 		  input reset,
+		  output irq,
 		  input[7:0] a,
 		  input[7:0] d_d,
 		  output[7:0] d_q,
@@ -76,6 +77,7 @@ module dma_engine(
 
    wire       irq_pending;
    assign     irq_pending = (irq_eob & im_eob) | (irq_fault & im_fault);
+   assign     irq = irq_enable & irq_pending;
 
    reg [3:0]  state  = 4'b0000;
    reg [15:0] dma_a_save;
