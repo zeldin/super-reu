@@ -258,15 +258,15 @@ module dma_engine(
 		state <= 4'b0001;
 	     end
 	   4'b1110: // verify step 1
-	     if (dma_req_reg == dma_ack) begin
-		ram_d_reg <= dma_q;
-		ram_we_reg <= 1'b0;
-		ram_req_reg <= ~ram_req_reg;
+	     if (ram_req_reg == ram_ack) begin
+		ram_d_reg <= ram_q;
+		dma_rw_reg <= 1'b0;
+		dma_req_reg <= ~dma_req_reg;
 		state <= 4'b1111;
 	     end
 	   4'b1111: // verify step 2
-	     if (ram_req_reg == ram_ack) begin
-		if (ram_q == ram_d_reg) begin
+	     if (dma_req_reg == dma_ack) begin
+		if (dma_q == ram_d_reg) begin
 		   if (~fix_dma_a)
 		     dma_a_reg <= dma_a_reg + 1;
 		   if (~fix_ram_a)
