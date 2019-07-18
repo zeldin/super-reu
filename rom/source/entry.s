@@ -1,9 +1,12 @@
 
 	.macpack cbm
 
-	.import screen, setrow, nextrow, dumpreg
+	.import screen, clear_screen, setrow, nextrow, dumpreg
 	.importzp vreg
 
+	.import initmmc64, enable8mhzmode, sendifcondmmc64
+	.import blockreadcmd, waitformmcdata, blockread, stopcmd, mmc64cmd
+	.importzp mmcptr, blknum
 
 	.code
 	
@@ -30,8 +33,13 @@ init_vic_loop:
 	sta $d010,x
 	dex
 	bne init_vic_loop
+	stx $dc03
+	dex
+	stx $dc02
 	lda #3
 	sta $dd00
+	lda #$3f
+	sta $dd02
 	lda #$7f
 	sta $dc0d
 	sta $dd0d
@@ -43,19 +51,7 @@ init_vic_loop:
 	sta $315
 	cli
 
-clear_screen:
-	lda #$20
-	sta screen+$000,x
-	sta screen+$100,x
-	sta screen+$200,x
-	sta screen+$300,x
-	lda #$f
-	sta $d800,x
-	sta $d900,x
-	sta $da00,x
-	sta $db00,x
-	inx
-	bne clear_screen
+	jsr clear_screen
 
 	ldx #message_length-1
 print_message:	
@@ -160,9 +156,9 @@ print_message:
 
 	jsr waitdma
 
-	lda #<$de12
+	lda #<$de02
 	sta $df02
-	lda #>$de12
+	lda #>$de02
 	sta $df03
 	lda #1
 	sta $df07
@@ -178,12 +174,22 @@ print_message:
 	jsr setrow
 
 	ldx #0
-@dumpdeloop:
+@dumpde00loop:
 	jsr dumpdereg
 	inx
 	cpx #8
-	bcc @dumpdeloop
+	bcc @dumpde00loop
 
+	lda #16
+	jsr setrow
+
+	ldx #$10
+@dumpde10loop:
+	jsr dumpdereg
+	inx
+	cpx #$14
+	bcc @dumpde10loop
+	
 	lda #3
 	jsr setrow
 
@@ -198,8 +204,160 @@ print_message:
 
 	;; Holding pattern
 
-halt_here:	
+	lda #$7f
+	sta $dc00
+@wait_here:	
 	inc $d020
+	lda $dc01
+	and #$10
+	bne @wait_here
+
+	jsr clear_screen
+
+	lda #1
+	sta screen
+
+	jsr initmmc64
+
+	lda #'0'
+	adc #0
+	sta screen+2
+
+	jsr enable8mhzmode
+
+	lda #4
+	sta screen+3
+
+	jsr sendifcondmmc64
+
+	sta screen+4
+	lda #'0'
+	adc #0
+	sta screen+5
+
+@idlewait:
+	ldy #0
+	lda #$77
+	jsr mmc64cmd
+	ldy #$40
+	lda #$69
+	jsr mmc64cmd	
+	lda $de10
+	bne @idlewait
+
+	ldy #0
+	lda #$7a
+	jsr mmc64cmd
+	stx $de10
+	stx $de10
+	stx $de10
+	stx $de10
+
+	lda #0
+	sta blknum
+	sta blknum+1
+	sta blknum+2
+	sta blknum+3
+	jsr blockreadcmd
+
+	lda #5
+	sta screen+6
+
+	jsr waitformmcdata
+
+	lda #6
+	sta screen+7
+
+	lda #<(screen+80)
+	sta mmcptr
+	lda #>(screen+80)
+	sta mmcptr+1
+	jsr blockread
+
+	lda #7
+	sta screen+8
+
+	jsr stopcmd
+
+	lda #8
+	sta screen+9
+
+	
+	lda #0
+	sta blknum
+	sta $d020
+
+@nextframe:
+	lda #<$4000
+	sta mmcptr
+	lda #>$4000
+	sta mmcptr+1
+	ldx #18
+@movieloop:
+	txa
+	pha
+
+	jsr blockreadcmd
+	jsr waitformmcdata
+	jsr blockread
+	jsr stopcmd
+		
+	pla
+	tax
+	dex
+	bne @movieloop
+
+@sync1:
+	lda $d011
+	bpl @sync1
+
+	lda #$3b
+	sta $d011
+	lda #$80
+	sta $d018
+	lda #2
+	sta $dd00
+
+
+	lda #<$2000
+	sta mmcptr
+	lda #>$2000
+	sta mmcptr+1
+	ldx #18
+@movieloop2:
+	txa
+	pha
+
+	jsr blockreadcmd
+	jsr waitformmcdata
+	jsr blockread
+	jsr stopcmd
+		
+	pla
+	tax
+	cpx #3
+	bne @noswitch
+	lda #>$0c00
+	sta mmcptr+1
+@noswitch:		
+	dex
+	bne @movieloop2
+
+@sync2:
+	lda $d011
+	bpl @sync2
+
+	lda #$3b
+	sta $d011
+	lda #$38
+	sta $d018
+	lda #3
+	sta $dd00
+
+	jmp @nextframe
+	
+		
+halt_here:
 	jmp halt_here
 
 

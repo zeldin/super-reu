@@ -7,6 +7,7 @@ OBJDIR = obj
 
 OBJS =  $(OBJDIR)/entry.o
 OBJS += $(OBJDIR)/screen.o
+OBJS += $(OBJDIR)/mmc64.o
 
 
 all : $(OBJDIR)/super_reu.bin

@@ -1,5 +1,5 @@
 
-	.export screen, setrow, nextrow, dumpreg
+	.export screen, clear_screen, setrow, nextrow, dumpreg
 	.exportzp vreg
 
 	
@@ -13,6 +13,28 @@ vreg:	.res 2
 
 
 	.code
+
+
+	;; Clear the screen
+	;; A - scratch
+	;; X - scratch
+	;; Y - preserved
+clear_screen:
+	ldx #0
+@clear_screen:	
+	lda #$20
+	sta screen+$000,x
+	sta screen+$100,x
+	sta screen+$200,x
+	sta screen+$300,x
+	lda #$f
+	sta $d800,x
+	sta $d900,x
+	sta $da00,x
+	sta $db00,x
+	inx
+	bne @clear_screen
+	rts
 
 
 	;; Set vscrn to the start of a screen row
