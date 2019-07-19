@@ -4,8 +4,8 @@
 	.import screen, clear_screen, setrow, nextrow, dumpreg
 	.importzp vreg
 
-	.import initmmc64, enable8mhzmode, sendifcondmmc64
-	.import blockreadcmd, waitformmcdata, blockread, stopcmd, mmc64cmd
+	.import initmmc64, selectmmc64, deselectmmc64
+	.import blockreadcmd, blockreadmulticmd, blockread, stopcmd
 	.importzp mmcptr, blknum
 
 	.code
@@ -219,40 +219,16 @@ print_message:
 
 	jsr initmmc64
 
+	sta screen+1
 	lda #'0'
 	adc #0
 	sta screen+2
 
-	jsr enable8mhzmode
+	jsr selectmmc64
 
-	lda #4
-	sta screen+3
-
-	jsr sendifcondmmc64
-
+	lda #3
 	sta screen+4
-	lda #'0'
-	adc #0
-	sta screen+5
-
-@idlewait:
-	ldy #0
-	lda #$77
-	jsr mmc64cmd
-	ldy #$40
-	lda #$69
-	jsr mmc64cmd	
-	lda $de10
-	bne @idlewait
-
-	ldy #0
-	lda #$7a
-	jsr mmc64cmd
-	stx $de10
-	stx $de10
-	stx $de10
-	stx $de10
-
+	
 	lda #0
 	sta blknum
 	sta blknum+1
@@ -260,13 +236,10 @@ print_message:
 	sta blknum+3
 	jsr blockreadcmd
 
+	sta screen+5
+	
 	lda #5
 	sta screen+6
-
-	jsr waitformmcdata
-
-	lda #6
-	sta screen+7
 
 	lda #<(screen+80)
 	sta mmcptr
@@ -298,7 +271,6 @@ print_message:
 	pha
 
 	jsr blockreadcmd
-	jsr waitformmcdata
 	jsr blockread
 	jsr stopcmd
 		
@@ -329,7 +301,6 @@ print_message:
 	pha
 
 	jsr blockreadcmd
-	jsr waitformmcdata
 	jsr blockread
 	jsr stopcmd
 		
