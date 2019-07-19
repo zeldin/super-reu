@@ -104,6 +104,7 @@ module bus_manager (
 
 
    reg [3:0] state = 4'd0;
+   reg [3:0] dma_delay = 4'd0;
 
    always @(posedge clk) begin
 
@@ -205,13 +206,23 @@ module bus_manager (
 	     ds_dir_dma <= 1'b0;
 	     as_dir_dma <= 1'b0;
              rw_out_dma <= 1'b0;
+	     dma_delay <= 4'd15;
 
-	     if (dma_req == dma_ack_reg)
-	       dma_reg <= 1'b0;
-	     else if (can_request_dma)
-	       dma_reg <= 1'b1;
+	     state <= 4'd13;
+	  end
+	4'd13:
+	  begin
+	     if (|dma_delay) begin
+	       dma_delay <= dma_delay - 1;
+		state <= 4'd13;
+	     end else begin
+		if (dma_req == dma_ack_reg)
+		  dma_reg <= 1'b0;
+		else if (can_request_dma)
+		  dma_reg <= 1'b1;
 
-	     state <= 4'd6;
+		state <= 4'd6;
+	     end
 	  end
 	4'd6: // Wait PHI1
 	  begin
