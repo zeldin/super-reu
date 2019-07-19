@@ -5,7 +5,7 @@
 	.importzp vreg
 
 	.import initmmc64, selectmmc64, deselectmmc64
-	.import blockreadcmd, blockreadmulticmd, blockread, stopcmd
+	.import blockread1, blockreadn
 	.importzp mmcptr, blknum
 
 	.code
@@ -234,10 +234,7 @@ print_message:
 	sta blknum+1
 	sta blknum+2
 	sta blknum+3
-	jsr blockreadcmd
 
-	sta screen+5
-	
 	lda #5
 	sta screen+6
 
@@ -245,15 +242,12 @@ print_message:
 	sta mmcptr
 	lda #>(screen+80)
 	sta mmcptr+1
-	jsr blockread
 
-	lda #7
+	jsr blockread1
+	sta screen+7
+	lda #'0'
+	adc #0
 	sta screen+8
-
-	jsr stopcmd
-
-	lda #8
-	sta screen+9
 
 	
 	lda #0
@@ -265,19 +259,8 @@ print_message:
 	sta mmcptr
 	lda #>$4000
 	sta mmcptr+1
-	ldx #18
-@movieloop:
-	txa
-	pha
-
-	jsr blockreadcmd
-	jsr blockread
-	jsr stopcmd
-		
-	pla
-	tax
-	dex
-	bne @movieloop
+	lda #18
+	jsr blockreadn
 
 @sync1:
 	lda $d011
@@ -290,29 +273,16 @@ print_message:
 	lda #2
 	sta $dd00
 
-
 	lda #<$2000
 	sta mmcptr
 	lda #>$2000
 	sta mmcptr+1
-	ldx #18
-@movieloop2:
-	txa
-	pha
-
-	jsr blockreadcmd
-	jsr blockread
-	jsr stopcmd
-		
-	pla
-	tax
-	cpx #3
-	bne @noswitch
+	lda #16
+	jsr blockreadn
 	lda #>$0c00
 	sta mmcptr+1
-@noswitch:		
-	dex
-	bne @movieloop2
+	lda #2
+	jsr blockreadn
 
 @sync2:
 	lda $d011

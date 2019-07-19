@@ -1,6 +1,6 @@
 
 	.export initmmc64, selectmmc64, deselectmmc64
-	.export blockreadcmd, blockreadmulticmd, blockread, stopcmd
+	.export blockread1, blockreadn
 	.exportzp mmcptr, blknum
 
 
@@ -8,8 +8,9 @@
 
 mmcptr:	.res 2
 blknum:	.res 4
+blkcnt:	.res 1
 sdtype: .res 1
-	
+
 	.code
 
 	
@@ -150,7 +151,47 @@ deselectmmc64:
 	sta $de11
 	rts
 
+
+	;; Read 1-256 blocks
+	;; A - in: number of blocks (0 == 256)
+	;; X,Y:	scratch
+	;; C - out: 0=ok, 1=fail
+blockreadn:
+	cmp #1
+	beq blockread1
+	sta blkcnt
+	jsr blockreadmulticmd
+	bne loopreadnblocks
+@moreblocks:
+	jsr blockread
+	bcs readfail
+	dec blkcnt
+	bne @moreblocks	
+	jsr stopcmd
+	bne readfail
+	clc
+	rts
+
+loopreadnblocks:	
+	jsr blockreadcmd
+	bne readfail
+	jsr blockread
+	bcs readfail
+	dec blkcnt
+	bne loopreadnblocks
+	clc
+	rts
 	
+readfail:
+	sec
+	rts
+
+	;; Read one block
+blockread1:
+	jsr blockreadcmd
+	bne readfail
+	; fallthrough to blockread
+		
 ; Transfer 512 bytes from card into memory
 
 blockread:	
@@ -158,9 +199,11 @@ blockread:
 	lda #$ff	
 	sta $de10		;write all high bits
 	lda $de10		;to give the possibility to respond
-	cmp #$fe		;has it started?
-	bne @waitformmcdata 	;nop, so we continue waiting
-	
+	cmp #$ff		;has it started?
+	beq @waitformmcdata 	;nop, so we continue waiting
+	cmp #$fe
+	bne readfail
+
 	lda $de11		;set MMC64 into read trigger mode
 	ora #%01000000		;which means every read triggers a SPI transfer
 	sta $de11
@@ -191,6 +234,7 @@ blockread:
 	bne @nowrap
 	inc blknum+3
 @nowrap:
+	clc
 	rts
 
 
