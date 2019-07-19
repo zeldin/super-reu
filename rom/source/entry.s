@@ -5,7 +5,7 @@
 	.importzp vreg
 
 	.import initmmc64, selectmmc64, deselectmmc64
-	.import blockread1, blockreadn
+	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
 
 	.code
@@ -255,16 +255,62 @@ print_message:
 	sta $d020
 
 @nextframe:
-	lda #<$4000
-	sta mmcptr
-	lda #>$4000
-	sta mmcptr+1
-	lda #18
-	jsr blockreadn
+	dec $d020
 
+	lda #0
+	sta $de15
+	sta $de16
+	sta $de17
+	sta $df04
+	sta $df05
+	sta $df06
+
+	jsr blockreadmulticmd
+	lda #18
+	sta $de14
+	lda #1
+	sta $de13
+	clc
+	lda blknum
+	adc #18
+	sta blknum
+	bcc @nowrap1
+	inc blknum+1
+	bne @nowrap1
+	inc blknum+2
+	bne @nowrap1
+	inc blknum+3
+@nowrap1:	
+	dec $d020
+@wait1:	
+	lda $de13
+	bne @wait1
+
+	dec $d020
+
+	jsr stopcmd
+	
+	dec $d020
+
+	lda #<$4000
+	sta $df02
+	lda #>$4000
+	sta $df03
+	lda #<$2400
+	sta $df07
+	lda #>$2400
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+	lda #0
+	sta $d020
 @sync1:
+	lda $d012
+	bne @sync1
 	lda $d011
-	bpl @sync1
+	bmi @sync1
 
 	lda #$3b
 	sta $d011
@@ -273,20 +319,77 @@ print_message:
 	lda #2
 	sta $dd00
 
-	lda #<$2000
-	sta mmcptr
-	lda #>$2000
-	sta mmcptr+1
-	lda #16
-	jsr blockreadn
-	lda #>$0c00
-	sta mmcptr+1
-	lda #2
-	jsr blockreadn
+	dec $d020
 
+	lda #0
+	sta $de15
+	sta $de16
+	sta $de17
+	sta $df04
+	sta $df05
+	sta $df06
+
+	jsr blockreadmulticmd
+	lda #18
+	sta $de14
+	lda #1
+	sta $de13
+	clc
+	lda blknum
+	adc #18
+	sta blknum
+	bcc @nowrap2
+	inc blknum+1
+	bne @nowrap2
+	inc blknum+2
+	bne @nowrap2
+	inc blknum+3
+@nowrap2:
+
+	dec $d020
+@wait2:
+	lda $de13
+	bne @wait2
+
+	dec $d020
+
+	jsr stopcmd
+
+	dec $d020
+
+	lda #<$2000
+	sta $df02
+	lda #>$2000
+	sta $df03
+	lda #<$2000
+	sta $df07
+	lda #>$2000
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+	dec $d020
+
+	lda #<$0c00
+	sta $df02
+	lda #>$0c00
+	sta $df03
+	lda #<$0400
+	sta $df07
+	lda #>$0400
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+	lda #0
+	sta $d020
 @sync2:
+	lda $d012
+	bne @sync2
 	lda $d011
-	bpl @sync2
+	bmi @sync2
 
 	lda #$3b
 	sta $d011
@@ -303,7 +406,7 @@ halt_here:
 
 
 waitdma:
-	inc $d020
+	inc $d024
 	lda $df00
 	bpl waitdma
 	rts

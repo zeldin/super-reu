@@ -227,8 +227,16 @@ module chameleon2 (
    wire [7:0]  sdram_d;
    wire [7:0]  sdram_q;
 
+   wire        sdram_req2;
+   wire        sdram_ack2;
+   wire        sdram_we2;
+   wire [23:0] sdram_a2;
+   wire [7:0]  sdram_d2;
+   wire [63:0] sdram_q2;
+
    chameleon_sdram #(.colAddrBits(9), .rowAddrBits(13),
 		     .enable_cpu6510_port("true"),
+		     .enable_cache1_port("true"),
                      .casLatency(3), .ras_cycles(2), .precharge_cycles(2),
                      .t_clk_ns(6.7))
    sdram_inst(.clk(clk_150), .reserve(0),
@@ -238,7 +246,10 @@ module chameleon2 (
 	      .sd_ldqm(ram_ldqm), .sd_udqm(ram_udqm),
 	      .cpu6510_req(sdram_req), .cpu6510_ack(sdram_ack),
 	      .cpu6510_we(sdram_we), .cpu6510_a({1'b1, sdram_a}),
-	      .cpu6510_d(sdram_d), .cpu6510_q(sdram_q));
+	      .cpu6510_d(sdram_d), .cpu6510_q(sdram_q),
+	      .cache_req(sdram_req2), .cache_ack(sdram_ack2),
+	      .cache_we(sdram_we2), .cache_a({1'b1, sdram_a2}),
+	      .cache_d({{48{1'b0}}, sdram_d2, sdram_d2}), .cache_q(sdram_q2));
 
 
 // Bus
@@ -316,13 +327,16 @@ module chameleon2 (
 					  .read_strobe(io_read_strobe_sys),
 					  .write_strobe(io_write_strobe_sys));
 
-   mmc64 mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),
+   mmc64 #(.ram_a_bits(24))
+   mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),
 		    .d_q(io_read_data_mmc64), .read_strobe(io_read_strobe_mmc64),
 		    .write_strobe(io_write_strobe_mmc64),
 		    .spi_q(spi_q), .spi_d(mmc64_spi_d), .spi_req(mmc64_spi_req),
 		    .spi_speed(spi_speed), .spi_ack(spi_ack), .wp(mmc_wp),
 		    .cd(mmc_cd), .spi_cs(mmc_cs),
-		    .exrom(~exrom_out), .game(~game_out));
+		    .exrom(~exrom_out), .game(~game_out),
+		    .ram_a(sdram_a2), .ram_d(sdram_d2), .ram_q(sdram_q2[7:0]),
+		    .ram_we(sdram_we2), .ram_req(sdram_req2), .ram_ack(sdram_ack2));
 
    dma_engine #(.ram_a_bits(24))
    dma_engine_inst(.clk(sysclk), .reset(reset), .irq(irq_out_dma),

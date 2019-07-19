@@ -16,7 +16,7 @@ module dma_engine(
 		  output        dma_req,
 		  input         dma_ack,
 
-		  output[ram_a_bits:0] ram_a,
+		  output[(ram_a_bits-1):0] ram_a,
 		  output[7:0] ram_d,
 		  input[7:0] ram_q,
 		  output ram_we,

@@ -1,6 +1,6 @@
 
 	.export initmmc64, selectmmc64, deselectmmc64
-	.export blockread1, blockreadn
+	.export blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.exportzp mmcptr, blknum
 
 
