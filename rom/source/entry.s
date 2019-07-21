@@ -76,7 +76,7 @@ print_message:
 	sta screen+40,x
 	dex
 	bpl @init_row
-	
+
 	lda #<(screen+7)
 	sta $df02
 	lda #>(screen+8)
@@ -254,9 +254,6 @@ print_message:
 	sta blknum
 	sta $d020
 
-@nextframe:
-	dec $d020
-
 	lda #0
 	sta $de15
 	sta $de16
@@ -266,29 +263,38 @@ print_message:
 	sta $df06
 
 	jsr blockreadmulticmd
-	lda #18
+	lda #0
 	sta $de14
 	lda #1
 	sta $de13
-	clc
-	lda blknum
-	adc #18
-	sta blknum
-	bcc @nowrap1
 	inc blknum+1
-	bne @nowrap1
-	inc blknum+2
-	bne @nowrap1
-	inc blknum+3
-@nowrap1:	
+	
+@nextframe:
 	dec $d020
-@wait1:	
+
+	lda $df06
+	cmp $de17
+	beq @noread
+	
 	lda $de13
-	bne @wait1
+	bne @noread
 
 	dec $d020
-
 	jsr stopcmd
+	jsr blockreadmulticmd
+	lda #0
+	sta $de14
+	lda #1
+	sta $de13
+	inc blknum+1
+	bne @nowrap0
+	inc blknum+2
+	bne @nowrap0
+	inc blknum+3
+@nowrap0:
+	inc $d020
+
+@noread:
 	
 	dec $d020
 
@@ -320,40 +326,6 @@ print_message:
 	sta $dd00
 
 	dec $d020
-
-	lda #0
-	sta $de15
-	sta $de16
-	sta $de17
-	sta $df04
-	sta $df05
-	sta $df06
-
-	jsr blockreadmulticmd
-	lda #18
-	sta $de14
-	lda #1
-	sta $de13
-	clc
-	lda blknum
-	adc #18
-	sta blknum
-	bcc @nowrap2
-	inc blknum+1
-	bne @nowrap2
-	inc blknum+2
-	bne @nowrap2
-	inc blknum+3
-@nowrap2:
-
-	dec $d020
-@wait2:
-	lda $de13
-	bne @wait2
-
-	dec $d020
-
-	jsr stopcmd
 
 	dec $d020
 
