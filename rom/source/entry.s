@@ -270,8 +270,6 @@ print_message:
 	inc blknum+1
 	
 @nextframe:
-	dec $d020
-
 	lda $df06
 	cmp $de17
 	beq @noread
@@ -281,6 +279,7 @@ print_message:
 
 	dec $d020
 	jsr stopcmd
+	inc $d020
 	jsr blockreadmulticmd
 	lda #0
 	sta $de14
@@ -292,7 +291,6 @@ print_message:
 	bne @nowrap0
 	inc blknum+3
 @nowrap0:
-	inc $d020
 
 @noread:
 	
@@ -326,7 +324,29 @@ print_message:
 	sta $dd00
 
 	dec $d020
+	
+	lda $63ff
+	sta $d021
+	lda $63fe
+	sta $d016
 
+	and #$10
+	beq @nocram0
+
+	lda #<$d800
+	sta $df02
+	lda #>$d800
+	sta $df03
+	lda #<$0400
+	sta $df07
+	lda #>$0400
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+@nocram0:
+	
 	dec $d020
 
 	lda #<$2000
@@ -370,6 +390,30 @@ print_message:
 	lda #3
 	sta $dd00
 
+	dec $d020
+
+	lda $0fff
+	sta $d021
+	lda $0ffe
+	sta $d016
+
+	and #$10
+	beq @nocram1
+
+	lda #<$d800
+	sta $df02
+	lda #>$d800
+	sta $df03
+	lda #<$0400
+	sta $df07
+	lda #>$0400
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+@nocram1:
+	
 	jmp @nextframe
 	
 		
