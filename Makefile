@@ -1,5 +1,5 @@
 
-SUBDIRS = core rom
+SUBDIRS = tools core rom
 
 .DEFAULT_GOAL:=dummy
 
