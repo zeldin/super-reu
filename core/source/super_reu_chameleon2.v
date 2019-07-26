@@ -340,7 +340,7 @@ module chameleon2 (
 		    .ram_a(sdram_a2), .ram_d(sdram_d2), .ram_q(sdram_q2[7:0]),
 		    .ram_we(sdram_we2), .ram_req(sdram_req2), .ram_ack(sdram_ack2));
 
-   dma_engine #(.ram_a_bits(24))
+   dma_engine #(.ram_a_bits(24), .channels(4))
    dma_engine_inst(.clk(sysclk), .reset(reset), .irq(irq_out_dma),
 		   .a(low_a[7:0]), .d_d(low_d), .d_q(io_read_data_dma),
 		   .read_strobe(io_read_strobe_dma),
