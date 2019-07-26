@@ -165,6 +165,8 @@ module chameleon2 (
 
 // LED, PS2 and reset shiftregister
 
+   wire red_led;
+
    chameleon2_io_shiftreg shiftreg_inst(.clk(sysclk), .ser_out_clk(ser_out_clk),
 					.ser_out_dat(ser_out_dat), .ser_out_rclk(ser_out_rclk),
 					.reset_c64(reset | ~rom_load_done),
@@ -306,12 +308,12 @@ module chameleon2 (
    wire [7:0]  io_read_data_sys;
    wire [7:0]  io_read_data_mmc64;
    wire [7:0]  io_read_data_dma;
-   wire        io_read_stobe_sys;
-   wire        io_read_stobe_mmc64;
-   wire        io_read_stobe_dma;
-   wire        io_write_stobe_sys;
-   wire        io_write_stobe_mmc64;
-   wire        io_write_stobe_dma;
+   wire        io_read_strobe_sys;
+   wire        io_read_strobe_mmc64;
+   wire        io_read_strobe_dma;
+   wire        io_write_strobe_sys;
+   wire        io_write_strobe_mmc64;
+   wire        io_write_strobe_dma;
 
    address_decoder #(.a_bits(9), .devices(3),
 		     .base_addresses({16'hde00, 16'hde10, 16'hdf00}),
