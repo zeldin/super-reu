@@ -3,7 +3,7 @@
  *
  *  Example invocation:
  *
- *  m64conv -f 24 -p -m big_buck_bunny_%05d.png > bunny_mc.m64
+ *  m64conv -f 24 -p -m big_buck_bunny_%05d.png BigBuckBunny-stereo.flac > bunny_mc.m64
  */
 
 #include <stdint.h>
@@ -15,13 +15,14 @@
 
 #include "imgconv.h"
 
-static void convert(FILE *vframes, FILE *player, int mc)
+static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc)
 {
   uint8_t pixels[200][320][3];
   uint8_t bitmap[25][40][8];
   uint8_t screen[25][40];
   uint8_t color[25][40];
   uint8_t bg = 0;
+  uint8_t ntsc = 0;
 
   while(fread(pixels, sizeof(pixels), 1, vframes) == 1) {
 
@@ -32,20 +33,44 @@ static void convert(FILE *vframes, FILE *player, int mc)
       fwrite(pixels, sizeof(pixels), 1, player);
     }
 
+    uint8_t hdr_and_sound[1024];
     uint8_t data[8192+1024+1024];
     memset(data, 0, sizeof(data));
     memcpy(data+0, bitmap, sizeof(bitmap));
     memcpy(data+8192, screen, sizeof(screen));
-    if (mc) {
+    if (mc)
       memcpy(data+8192+1024, color, sizeof(color));
-      data[8192+1024-1] = bg;
-      data[8192+1024-2] = 0x18;
-    } else {
-      data[8192+1024-1] = 0;
-      data[8192+1024-2] = 0x08;
-    }
-    write(1, data, (mc? 8192+1024+1024 : 8192+1024));
 
+    uint16_t samples = 320;
+    memset(hdr_and_sound, 0, sizeof(hdr_and_sound));
+    if (aframes) {
+      int n;
+      samples = fread(hdr_and_sound + 16, 1,
+		      (samples > sizeof(hdr_and_sound)-16?
+		       sizeof(hdr_and_sound)-16 : samples), aframes);
+      for (n=0; n<samples; n++)
+	hdr_and_sound[16+n] = 0xf0 | (hdr_and_sound[16+n]>>4);
+    } else
+      samples = 0;
+    hdr_and_sound[0] = 0xaa;
+    hdr_and_sound[1] = 0x4d;
+    hdr_and_sound[3] = (samples + 16 + 255) >> 8;
+    hdr_and_sound[2] = hdr_and_sound[3] + (mc? 32+4+4 : 32+4);
+    hdr_and_sound[4] = (samples > 0? 4 : 0) | (mc? 3 : 1);
+    hdr_and_sound[5] = samples & 0xff;
+    hdr_and_sound[6] = samples >> 8;
+    hdr_and_sound[7] = (ntsc? 60 : 50);
+    hdr_and_sound[8] = 16000 & 0xff;
+    hdr_and_sound[9] = 16000 >> 8;
+    hdr_and_sound[10] = 61;
+    hdr_and_sound[11] = 108;
+    hdr_and_sound[12] = 53;
+    hdr_and_sound[13] = 108;
+    hdr_and_sound[14] = (mc? 0x18 : 0x08);
+    hdr_and_sound[15] = (mc? bg : 0);
+
+    write(1, hdr_and_sound, hdr_and_sound[3]<<8);
+    write(1, data, (mc? 8192+1024+1024 : 8192+1024));
   }
 }
 
@@ -143,6 +168,7 @@ int main(int argc, char *argv[])
   char *endp, *cmdline;
 
   FILE *vframes = NULL;
+  FILE *aframes = NULL;
   FILE *player = NULL;
 
   while ((opt = getopt(argc, argv, "f:mp")) != -1) {
@@ -190,6 +216,21 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  cmdline_start();
+  cmdline_append("ffmpeg -nostats -hide_banner");
+  cmdline_append("-i");
+  cmdline_append_quoted(argv[optind+1 >= argc? optind : optind+1]);
+  cmdline_append("-f u8 -af volume=10dB,aformat=sample_fmts=u8:sample_rates=%d:channel_layouts=mono -", 16000);
+  cmdline = cmdline_finish();
+
+  aframes = popen(cmdline, "r");
+  free(cmdline);
+  if (aframes == NULL) {
+    perror("popen");
+    fclose(vframes);
+    return 1;
+  }
+
   if (preview) {
     cmdline_start();
     cmdline_append("ffplay -nostats -hide_banner -autoexit");
@@ -201,13 +242,17 @@ int main(int argc, char *argv[])
     free(cmdline);
     if (player == NULL) {
       perror("popen");
+      if (aframes)
+	fclose(aframes);
       fclose(vframes);
       return 1;
     }
   }
 
-  convert(vframes, player, mc);
+  convert(vframes, aframes, player, mc);
 
+  if (aframes)
+    fclose(aframes);
   fclose(vframes);
   if (player)
     fclose(player);

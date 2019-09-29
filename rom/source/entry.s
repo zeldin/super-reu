@@ -8,6 +8,14 @@
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
 
+
+frame_header = $0bf0
+
+	.zeropage
+
+vswap:	.res 1
+aswap:	.res 1
+		
 	.code
 	
 	.word start
@@ -255,12 +263,24 @@ print_message:
 	sta $d020
 
 	lda #0
+	sta vswap
+	sta aswap
 	sta $de15
 	sta $de16
 	sta $de17
 	sta $df04
 	sta $df05
 	sta $df06
+	sta $df19
+	sta $df1d
+	sta $df29
+	sta $df2d
+	lda #<$d418
+	sta $df12
+	sta $df22
+	lda #>$d418
+	sta $df13
+	sta $df23
 
 	jsr blockreadmulticmd
 	lda #0
@@ -268,6 +288,10 @@ print_message:
 	lda #1
 	sta $de13
 	inc blknum+1
+
+@wait1stread:
+	lda $de13
+	bne @wait1stread	
 	
 @nextframe:
 	lda $df06
@@ -291,129 +315,138 @@ print_message:
 	bne @nowrap0
 	inc blknum+3
 @nowrap0:
-
-@noread:
 	
-	dec $d020
-
-	lda #<$4000
+@noread:
+	lda #<frame_header
 	sta $df02
-	lda #>$4000
+	lda #>frame_header
 	sta $df03
-	lda #<$2400
+	lda #<16
 	sta $df07
-	lda #>$2400
+	lda #>16
 	sta $df08
 	lda #$91
 	sta $df01
 	jsr waitdma
 
+	lda frame_header+4
+	and #$04
+	beq @noaudioprep
+
+
+	lda aswap
+	eor #$10
+	sta aswap
+	tax
+	lda $df04
+	sta $df14,x
+	lda $df05
+	sta $df15,x
+	lda $df06
+	sta $df16,x
+	lda frame_header+5
+	sta $df17,x
+	lda frame_header+6
+	sta $df18,x
+	lda #$80
+	sta $df1a,x
+	sta $df1b,x
+	lda frame_header+10
+	sta $df1c,x
+	lda frame_header+11
+	sta $df1e,x
+	lda #$81
+	sta $df11,x
+
+@noaudioprep:	
+	lda #0
+	sta $df04
+	clc
+	lda $df05
+	adc frame_header+3
+	sta $df05
+	bne @nowrap1
+	inc $df06
+@nowrap1:
+
+	ldx vswap
+	lda frame_header+4
+	and #$01
+	beq @nobitmap
+	txa
+	eor #$04
+	sta vswap
+	tax
+		
+	dec $d020
+	dec $d020
+
+	lda #0
+	sta $df02
+	sta $df07
+	lda swapdata+0,x
+	sta $df03
+	lda #>$2000
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+	dec $d020
+
+	lda #0
+	sta $df02
+	sta $df07
+	lda swapdata+1,x
+	sta $df03
+	lda #>$0400
+	sta $df08
+	lda #$91
+	sta $df01
+	jsr waitdma
+
+@nobitmap:
 	lda #0
 	sta $d020
+	
 @sync1:
+	inc $d024
 	lda $d012
 	bne @sync1
 	lda $d011
 	bmi @sync1
 
+	sta $ff00 ; trigger audio DMA, if set up
 	lda #$3b
 	sta $d011
-	lda #$80
+	lda swapdata+2,x
 	sta $d018
-	lda #2
+	lda swapdata+3,x
 	sta $dd00
 
 	dec $d020
 	
-	lda $63ff
+	lda frame_header+$f
 	sta $d021
-	lda $63fe
+	lda frame_header+$e
 	sta $d016
 
-	and #$10
-	beq @nocram0
-
-	lda #<$d800
-	sta $df02
-	lda #>$d800
-	sta $df03
-	lda #<$0400
-	sta $df07
-	lda #>$0400
-	sta $df08
-	lda #$91
-	sta $df01
-	jsr waitdma
-
-@nocram0:
-	
-	dec $d020
-
-	lda #<$2000
-	sta $df02
-	lda #>$2000
-	sta $df03
-	lda #<$2000
-	sta $df07
-	lda #>$2000
-	sta $df08
-	lda #$91
-	sta $df01
-	jsr waitdma
-
-	dec $d020
-
-	lda #<$0c00
-	sta $df02
-	lda #>$0c00
-	sta $df03
-	lda #<$0400
-	sta $df07
-	lda #>$0400
-	sta $df08
-	lda #$91
-	sta $df01
-	jsr waitdma
+	lda frame_header+$4
+	and #$02
+	beq @nocram
 
 	lda #0
-	sta $d020
-@sync2:
-	lda $d012
-	bne @sync2
-	lda $d011
-	bmi @sync2
-
-	lda #$3b
-	sta $d011
-	lda #$38
-	sta $d018
-	lda #3
-	sta $dd00
-
-	dec $d020
-
-	lda $0fff
-	sta $d021
-	lda $0ffe
-	sta $d016
-
-	and #$10
-	beq @nocram1
-
-	lda #<$d800
 	sta $df02
+	sta $df07
 	lda #>$d800
 	sta $df03
-	lda #<$0400
-	sta $df07
 	lda #>$0400
 	sta $df08
 	lda #$91
 	sta $df01
 	jsr waitdma
 
-@nocram1:
-	
+@nocram:
 	jmp @nextframe
 	
 		
@@ -475,3 +508,10 @@ irq_handler:
 	inc $d021
 	jmp irq_handler
 
+
+	.align 4
+
+swapdata:
+	.byte >$4000, >$6000, $80, 2
+	.byte >$2000, >$0c00, $38, 3
+	
