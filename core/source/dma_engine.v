@@ -187,7 +187,7 @@ module dma_engine(
 
 	       if (~running &&
 		   ((write_strobe && a[7:4] == chan && a[3:0] == 4'h1 && d_d[7] && d_d[4]) ||
-		    (ff00_strobe & execute & ff00))) begin
+		    (ff00_strobe & execute & ~ff00))) begin
 		  dma_a_save <= dma_a_reg;
 		  ram_a_save <= ram_a_reg;
 		  tcnt_save <= tcnt;
