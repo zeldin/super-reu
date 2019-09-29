@@ -21,7 +21,9 @@ module dma_engine(
 		  input[7:0] ram_q,
 		  output ram_we,
 		  output ram_req,
-		  input ram_ack
+		  input ram_ack,
+
+		  input phi2tick
 		  );
 
    parameter ram_a_bits = 17;  // 17-24
@@ -61,6 +63,7 @@ module dma_engine(
    assign ram_a = ram_a_out_reg;
 
    reg [3:0] active_channel = 4'd0;
+   reg       channel_selected = 1'b0;
 
    wire [7:0] dqs[(channels-1):0];
    wire [15:0] dma_a_regs[(channels-1):0];
@@ -90,11 +93,18 @@ module dma_engine(
 	 reg 	    im_fault = 1'b0;
 	 reg 	    fix_dma_a = 1'b0;
 	 reg 	    fix_ram_a = 1'b0;
+	 reg 	    constrate = 1'b0;
+	 reg 	    constdelay = 1'b0;
+	 reg [15:0] delay;
+	 reg [7:0]  subdelay;
 
 	 reg 	    running = 1'b0;
+	 reg 	    paused = 1'b0;
 	 reg [15:0] dma_a_save;
 	 reg [(ram_a_reg_bits-1):0] ram_a_save;
-	 reg [15:0] 		    tcnt_save;
+	 reg [15:0] tcnt_save;
+	 reg [15:0] delaycnt;
+	 reg [8:0]  subdelaycnt;
 
 	 reg [7:0]  d_q_val;
 	 wire 	    irq_pending;
@@ -107,7 +117,7 @@ module dma_engine(
 	 assign ram_a_regs[chan] = ram_a_reg;
 	 assign ttypes[chan] = ttype;
 	 assign last_transfer[chan] = (tcnt == 16'h0001);
-	 assign runnings[chan] = running;
+	 assign runnings[chan] = running & ~paused;
 
 	 always @(posedge clk) begin
 
@@ -126,7 +136,14 @@ module dma_engine(
 	       im_fault <= 1'b0;
 	       fix_dma_a <= 1'b0;
 	       fix_ram_a <= 1'b0;
+	       constrate <= 1'b0;
+	       constdelay <= 1'b0;
+	       delay <= 16'h0000;
+	       subdelay <= 8'h00;
 	       running <= 1'b0;
+	       paused <= 1'b0;
+	       delaycnt <= 16'h0000;
+	       subdelaycnt <= 9'h000;
 	    end // if (reset)
 	    else begin
 
@@ -159,6 +176,13 @@ module dma_engine(
 		      fix_dma_a <= d_d[7];
 		      fix_ram_a <= d_d[6];
 		   end
+		   4'hb: begin
+		      constrate <= d_d[7];
+		      constdelay <= d_d[6];
+		   end
+		   4'hc: delay[7:0] <= d_d;
+		   4'hd: delay[15:8] <= d_d;
+		   4'he: subdelay <= d_d;
 		 endcase // case (a[3:0])
 
 	       if (~running &&
@@ -168,7 +192,24 @@ module dma_engine(
 		  ram_a_save <= ram_a_reg;
 		  tcnt_save <= tcnt;
 		  running <= 1'b1;
+		  delaycnt <= 16'h0001;
+		  subdelaycnt <= 8'h00;
+		  paused <= constrate | constdelay;
 	       end
+
+	       if (running && phi2tick &&
+		   (constrate || (constdelay && paused))) begin
+		  if (delaycnt == delay) begin
+		     paused <= 1'b0;
+		     delaycnt <= {15'h0000, ~subdelaycnt[8]};
+		     subdelaycnt <= {1'b0, subdelaycnt[7:0]} + {1'b0, subdelay};
+		  end else begin
+		     delaycnt <= delaycnt + 1;
+		  end
+	       end
+
+	       if (channel_selected && active_channel == chan && constrate)
+		  paused <= 1'b1;
 
 	       if (active_channel == chan) begin
 		  case (state)
@@ -190,20 +231,32 @@ module dma_engine(
 		      if (dma_req_reg == dma_ack && ~fix_dma_a)
 			dma_a_reg <= dma_a_reg + 1;
 		    4'b1001: // C64 -> RAM step 2
-		      if (ram_req_reg == ram_ack && ~fix_ram_a)
-			ram_a_reg <= ram_a_reg + 1;
+		      if (ram_req_reg == ram_ack) begin
+			 if (~fix_ram_a)
+			   ram_a_reg <= ram_a_reg + 1;
+			 if (constdelay)
+			   paused <= 1'b1;
+		      end
 		    4'b1010: // C64 <- RAM step 1
 		      if (ram_req_reg == ram_ack && ~fix_ram_a)
 			ram_a_reg <= ram_a_reg + 1;
 		    4'b1011: // C64 <- RAM step 2
-		      if (dma_req_reg == dma_ack && ~fix_dma_a)
-			dma_a_reg <= dma_a_reg + 1;
+		      if (dma_req_reg == dma_ack) begin
+			 if (~fix_dma_a)
+			   dma_a_reg <= dma_a_reg + 1;
+			 if (constdelay)
+			   paused <= 1'b1;
+		      end
 		    4'b0100: // swap step 3
 		      if (dma_req_reg == dma_ack && ~fix_dma_a)
 			dma_a_reg <= dma_a_reg + 1;
 		    4'b0101: // swap step 4
-		      if (ram_req_reg == ram_ack && ~fix_ram_a)
-			ram_a_reg <= ram_a_reg + 1;
+		      if (ram_req_reg == ram_ack) begin
+			 if (~fix_ram_a)
+			   ram_a_reg <= ram_a_reg + 1;
+			 if (constdelay)
+			   paused <= 1'b1;
+		      end
 		    4'b1111: // verify step 2
 		      if (dma_req_reg == dma_ack)
 			if (dma_q == ram_d_reg) begin
@@ -211,6 +264,8 @@ module dma_engine(
 			   dma_a_reg <= dma_a_reg + 1;
 			 if (~fix_ram_a)
 			   ram_a_reg <= ram_a_reg + 1;
+			 if (constdelay)
+			   paused <= 1'b1;
 			end else begin
 			   running <= 1'b0;
 			   execute <= 1'b0;
@@ -246,6 +301,10 @@ module dma_engine(
 	      4'h8: d_q_val = tcnt[15:8];
 	      4'h9: d_q_val = { irq_enable, im_eob, im_fault, 5'b11111 };
 	      4'ha: d_q_val = { fix_dma_a, fix_ram_a, 6'b111111 };
+	      4'hb: d_q_val = { constrate, constdelay, 6'b111111 };
+	      4'hc: d_q_val = delay[7:0];
+	      4'hd: d_q_val = delay[15:8];
+	      4'he: d_q_val = subdelay;
 	      default: d_q_val = 8'hFF;
 	    endcase // case (a[3:0])
 	 end // always @ (a[3:0])
@@ -295,6 +354,7 @@ module dma_engine(
 		robin_cnt <= robin_cnt + 1;
 	 end
 
+	 channel_selected <= 1'b0;
 	 case (state)
 	   4'b0000: begin
 	      if (found_robin)
@@ -311,6 +371,7 @@ module dma_engine(
 		    dma_rw_reg <= 1'b0;
 		 end
 		 state <= {1'b1, ttypes[robin_channel], 1'b0};
+		 channel_selected <= 1'b1;
 	      end // if (found_robin && runnings[robin_channel])
 	   end // case: 4'b0000
 	   4'b0001: begin
@@ -328,8 +389,9 @@ module dma_engine(
 		    dma_rw_reg <= 1'b0;
 		 end
 		 state <= {1'b1, ttypes[robin_channel], 1'b0};
+		 channel_selected <= 1'b1;
 	      end else
-	      if (last_transfer[active_channel]) begin
+	      if (last_transfer[active_channel] || ~runnings[active_channel]) begin
 		 state <= 4'b0000;
 	      end else begin
 		 dma_a_out_reg <= dma_a_regs[active_channel];
@@ -342,6 +404,7 @@ module dma_engine(
 		    dma_rw_reg <= 1'b0;
 		 end
 		 state <= {1'b1, ttypes[active_channel], 1'b0};
+		 channel_selected <= 1'b1;
 	      end
 	   end
 	   4'b1000: // C64 -> RAM step 1

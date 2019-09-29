@@ -144,9 +144,11 @@ module chameleon2 (
 // PHI2
 
    wire phi;
+   wire end_of_first_halfcycle;
 
    chameleon_phi_clock #(.phase_shift(8))
-   phi_clock_inst(.clk(sysclk), .phi2_n(phi2_n), .phiLocal(phi));
+   phi_clock_inst(.clk(sysclk), .phi2_n(phi2_n), .phiLocal(phi),
+		  .phiPreHalf(end_of_first_halfcycle));
 
 // Reset
 
@@ -350,7 +352,8 @@ module chameleon2 (
 		   .dma_q(io_dma_q), .dma_rw(io_dma_rw),
 		   .dma_req(io_dma_req), .dma_ack(io_dma_ack),
 		   .ram_a(sdram_a), .ram_d(sdram_d), .ram_q(sdram_q),
-		   .ram_we(sdram_we), .ram_req(sdram_req), .ram_ack(sdram_ack));
+		   .ram_we(sdram_we), .ram_req(sdram_req), .ram_ack(sdram_ack),
+		   .phi2tick(end_of_first_halfcycle));
 
 
 // EXROM
