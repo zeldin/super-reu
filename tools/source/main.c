@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "imgconv.h"
 
@@ -228,7 +229,8 @@ static struct frame *read_and_convert_frame(struct frame *f, FILE *vframes,
 
 #endif
 
-static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc
+static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
+		    double fps, double srate
 #if USE_THREADS
 		    , int parallel
 #endif
@@ -238,6 +240,13 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc
   struct frame *f = NULL;
   uint8_t f_mc = 0;
   uint8_t f_bg = 0;
+  uint8_t video_rate = (ntsc? 60 : 50);
+  double video_spill = 0.0;
+  double samples_per_frame = srate / video_rate;
+  double audio_spill = 0.0;
+  uint16_t audio_rate = floor(srate);
+  uint16_t pal_rate = floor(19656 * 256 / samples_per_frame);
+  uint16_t ntsc_rate = floor(17095 * 256 / samples_per_frame);
 
 #if USE_THREADS
   prepare_convert(vframes, mc, ntsc, !!player, parallel);
@@ -264,14 +273,17 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc
 #endif
     }
 
-    uint16_t samples = 320;
+    uint16_t samples;
     if (aframes) {
       int n;
+      double cnt = samples_per_frame + audio_spill;
+      samples = floor(cnt);
       samples = fread(hdr_and_sound + 16, 1,
 		      (samples > sizeof(hdr_and_sound)-16?
 		       sizeof(hdr_and_sound)-16 : samples), aframes);
       for (n=0; n<samples; n++)
 	hdr_and_sound[16+n] = 0xf0 | (hdr_and_sound[16+n]>>4);
+      audio_spill = cnt - samples;
     } else
       samples = 0;
     if (samples > 0) {
@@ -279,16 +291,21 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc
       hdr_and_sound[4] |= 4;
       hdr_and_sound[5] = samples & 0xff;
       hdr_and_sound[6] = samples >> 8;
-      hdr_and_sound[8] = 16000 & 0xff;
-      hdr_and_sound[9] = 16000 >> 8;
-      hdr_and_sound[10] = 61;
-      hdr_and_sound[11] = 108;
-      hdr_and_sound[12] = 53;
-      hdr_and_sound[13] = 108;
+      hdr_and_sound[8] = audio_rate & 0xff;
+      hdr_and_sound[9] = audio_rate >> 8;
+      hdr_and_sound[10] = pal_rate >> 8;
+      hdr_and_sound[11] = pal_rate & 0xff;
+      hdr_and_sound[12] = ntsc_rate >> 8;
+      hdr_and_sound[13] = ntsc_rate & 0xff;
     }
     hdr_and_sound[3] = hdr_and_sound[2];
 
-    if (f != NULL) {
+    if (video_spill < 0)
+      ;
+    else if (f != NULL) {
+
+      video_spill -= video_rate;
+
       f_mc = f->mc;
       f_bg = f->bg;
 
@@ -310,13 +327,15 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc
     } else if(!samples)
       break;
 
-    hdr_and_sound[7] = (ntsc? 60 : 50);
+    hdr_and_sound[7] = video_rate;
     hdr_and_sound[14] = (f_mc? 0x18 : 0x08);
     hdr_and_sound[15] = (f_mc? f_bg : 0);
 
     write(1, hdr_and_sound, hdr_and_sound[3]<<8);
     if (hdr_and_sound[2] > hdr_and_sound[3])
       write(1, data, (hdr_and_sound[2] - hdr_and_sound[3]) << 8);
+
+    video_spill += fps;
   }
 #if USE_THREADS
   cleanup_convert();
@@ -327,6 +346,7 @@ static void usage(const char *pname)
 {
   fprintf(stderr, "Usage: %s [-f fps] [-m] [-p]\n"
 	  "  -f fps      Set video fps\n"
+	  "  -r rate     Set audio sample rate\n"
 	  "  -m          Enable multicolor\n"
 	  "  -p          Display preview while encoding\n"
 #if USE_THREADS
@@ -417,6 +437,7 @@ int main(int argc, char *argv[])
 {
   int opt, mc = 0, preview = 0;
   double fps = 50;
+  double srate = 16000;
   char *endp, *cmdline;
 #if USE_THREADS
   int parallel = 1;
@@ -427,7 +448,7 @@ int main(int argc, char *argv[])
   FILE *player = NULL;
 
   while ((opt = getopt(argc, argv,
-		       "f:mp"
+		       "f:r:mp"
 #if USE_THREADS
 		       "j:"
 #endif
@@ -435,6 +456,13 @@ int main(int argc, char *argv[])
     switch (opt) {
     case 'f':
       fps = strtod(optarg, &endp);
+      if (!*optarg || *endp) {
+	fprintf(stderr, "Invalid number: %s\n", optarg);
+	return 1;
+      }
+      break;
+    case 'r':
+      srate = strtod(optarg, &endp);
       if (!*optarg || *endp) {
 	fprintf(stderr, "Invalid number: %s\n", optarg);
 	return 1;
@@ -489,7 +517,7 @@ int main(int argc, char *argv[])
   cmdline_append("ffmpeg -nostats -hide_banner");
   cmdline_append("-i");
   cmdline_append_quoted(argv[optind+1 >= argc? optind : optind+1]);
-  cmdline_append("-f u8 -af volume=10dB,aformat=sample_fmts=u8:sample_rates=%d:channel_layouts=mono -", 16000);
+  cmdline_append("-f u8 -af volume=10dB,aformat=sample_fmts=u8:sample_rates=%.8g:channel_layouts=mono -", srate);
   cmdline = cmdline_finish();
 
   aframes = popen(cmdline, "r");
@@ -518,7 +546,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  convert(vframes, aframes, player, mc
+  convert(vframes, aframes, player, mc, fps, srate
 #if USE_THREADS
 	  , parallel
 #endif

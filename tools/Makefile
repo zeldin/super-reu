@@ -5,7 +5,7 @@ OBJS =  $(OBJDIR)/main.o
 OBJS += $(OBJDIR)/imgconv.o
 
 DEFS = -DUSE_THREADS=1
-LIBS = -lpthread
+LIBS = -lpthread -lm
 
 all : $(OBJDIR)/m64conv
 
