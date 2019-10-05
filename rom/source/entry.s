@@ -294,13 +294,14 @@ print_message:
 	bne @wait1stread	
 	
 @nextframe:
-	lda $df06
-	cmp $de17
-	beq @noread
-	
 	lda $de13
 	bne @noread
 
+	sec
+	lda $de17
+	sbc $df06
+	bmi @noread
+	
 	dec $d020
 	jsr stopcmd
 	inc $d020
