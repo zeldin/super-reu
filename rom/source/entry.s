@@ -8,6 +8,8 @@
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
 
+	.import initstream, getstreamdata
+	
 
 frame_header = $0bf0
 
@@ -265,9 +267,6 @@ print_message:
 	lda #0
 	sta vswap
 	sta aswap
-	sta $de15
-	sta $de16
-	sta $de17
 	sta $df04
 	sta $df05
 	sta $df06
@@ -282,42 +281,30 @@ print_message:
 	sta $df13
 	sta $df23
 
-	jsr blockreadmulticmd
-	lda #0
-	sta $de14
-	lda #1
-	sta $de13
-	inc blknum+1
+	ldx #2
+	lda #$10
+	bit $df00
+	beq @only128k
+	lda $df06
+	eor #$ff
+	tax
+	inx
+@only128k:
+	jsr initstream
 
-@wait1stread:
-	lda $de13
-	bne @wait1stread	
-	
+	jmp @nextframe
+
+@readblocked2:
+	lda #0
+	sta $df04
+@readblocked1:
+	lda #2
+	sta $d020
 @nextframe:
-	lda $de13
-	bne @noread
+	lda $df05
+	jsr getstreamdata
+	beq @readblocked1
 
-	sec
-	lda $de17
-	sbc $df06
-	bmi @noread
-	
-	dec $d020
-	jsr stopcmd
-	inc $d020
-	jsr blockreadmulticmd
-	lda #0
-	sta $de14
-	lda #1
-	sta $de13
-	inc blknum+1
-	bne @nowrap0
-	inc blknum+2
-	bne @nowrap0
-	inc blknum+3
-@nowrap0:
-	
-@noread:
 	lda #<frame_header
 	sta $df02
 	lda #>frame_header
@@ -330,10 +317,12 @@ print_message:
 	sta $df01
 	jsr waitdma
 
+	cpx frame_header+2
+	bcc @readblocked2
+	
 	lda frame_header+4
 	and #$04
 	beq @noaudioprep
-
 
 	lda aswap
 	eor #$10
