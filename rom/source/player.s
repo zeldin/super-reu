@@ -17,6 +17,7 @@ movie_player:
 	lda #0
 	sta vswap
 	sta aswap
+	sta $d418
 	sta $df04
 	sta $df05
 	sta $df06
@@ -30,6 +31,14 @@ movie_player:
 	lda #>$d418
 	sta $df13
 	sta $df23
+	lda #$ff
+	sta $d406
+	sta $d40d
+	sta $d414
+	lda #$49
+	sta $d404
+	sta $d40b
+	sta $d412
 
 	ldx #2
 	lda #$10
@@ -209,7 +218,10 @@ end_of_movie:
 	sta $d018
 	lda #0
 	sta $d418
-
+	sta $d404
+	sta $d40b
+	sta $d412
+	
 	rts
 
 waitdma:
