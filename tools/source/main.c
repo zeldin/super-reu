@@ -282,7 +282,7 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 		      (samples > sizeof(hdr_and_sound)-16?
 		       sizeof(hdr_and_sound)-16 : samples), aframes);
       for (n=0; n<samples; n++)
-	hdr_and_sound[16+n] = 0xf0 | (hdr_and_sound[16+n]>>4);
+	hdr_and_sound[16+n] = hdr_and_sound[16+n] >> 4;
       audio_spill = cnt - samples;
     } else
       samples = 0;
