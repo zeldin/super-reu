@@ -437,9 +437,36 @@ print_message:
 	jsr waitdma
 
 @nocram:
+	lda frame_header+2
+	beq end_of_movie
 	jmp @nextframe
-	
-		
+
+end_of_movie:
+	lda #0
+	sta $d020
+	ldx #3
+@wait0:
+	inc $d024
+	lda $d012
+	beq @wait0
+@wait1:
+	inc $d024
+	lda $d012
+	bne @wait1
+	lda $d011
+	bmi @wait1
+	lda #$0b
+	sta $d011
+	dex
+	bne @wait0
+
+	lda #$08
+	sta $d016
+	lda #$15
+	sta $d018
+	lda #0
+	sta $d418
+
 halt_here:
 	jmp halt_here
 

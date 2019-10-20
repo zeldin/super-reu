@@ -247,6 +247,7 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
   uint16_t audio_rate = floor(srate);
   uint16_t pal_rate = floor(19656 * 256 / samples_per_frame);
   uint16_t ntsc_rate = floor(17095 * 256 / samples_per_frame);
+  uint8_t hdr_and_sound[1024];
 
 #if USE_THREADS
   prepare_convert(vframes, mc, ntsc, !!player, parallel);
@@ -257,7 +258,6 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 
   for (;;) {
 
-    uint8_t hdr_and_sound[1024];
     uint8_t data[8192+1024+1024];
 
     memset(hdr_and_sound, 0, sizeof(hdr_and_sound));
@@ -337,6 +337,13 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 
     video_spill += fps;
   }
+
+  hdr_and_sound[2] = hdr_and_sound[3] = 0;
+  hdr_and_sound[7] = video_rate;
+  hdr_and_sound[14] = (f_mc? 0x18 : 0x08);
+  hdr_and_sound[15] = (f_mc? f_bg : 0);
+  write(1, hdr_and_sound, 256);
+
 #if USE_THREADS
   cleanup_convert();
 #endif
