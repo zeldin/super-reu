@@ -42,11 +42,11 @@ movie_player:
 
 	ldx #2
 	lda #$10
-	bit $df00
+	bit $df00	; Special case for 128K expansion
 	beq @only128k
-	lda $df06
-	eor #$ff
-	tax
+	lda $df06	; Unimplemented addr bits will read back as "1".
+	eor #$ff	; Invert to get the implemented addr bits and
+	tax		; increment to get total expansion memory size
 	inx
 @only128k:
 	jsr initstream
