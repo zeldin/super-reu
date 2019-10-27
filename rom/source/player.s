@@ -3,13 +3,21 @@
 
 	.import initstream, getstreamdata
 
-frame_header = $0bf0
+	.import __MTX0_START__, __DOT0_START__
+	.import __MTX1_START__, __DOT1_START__
+
+
+	.bss
+
+	.align 16
+
+frame_header:	.res 16
 
 	.zeropage
 
 vswap:	.res 1
 aswap:	.res 1
-		
+
 	.code
 	
 
@@ -233,7 +241,10 @@ waitdma:
 
 	.align 4
 
+
+AVEC0 = ((__MTX0_START__ >> 6) & $3f0) ^ ((__DOT0_START__ >> 10) & $0f) ^ $300
+AVEC1 = ((__MTX1_START__ >> 6) & $3f0) ^ ((__DOT1_START__ >> 10) & $0f) ^ $300
+
 swapdata:
-	.byte >$4000, >$6000, $80, 2
-	.byte >$2000, >$0c00, $38, 3
-	
+	.byte >__DOT0_START__, >__MTX0_START__, <AVEC0, >AVEC0
+	.byte >__DOT1_START__, >__MTX1_START__, <AVEC1, >AVEC1

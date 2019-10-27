@@ -2,8 +2,9 @@
 	.export screen, clear_screen, setrow, nextrow, dumpreg
 	.exportzp vreg
 
+	.import __SCRN_START__
 	
-screen = $400
+screen = __SCRN_START__
 
 
 	.zeropage

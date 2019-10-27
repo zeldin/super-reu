@@ -10,6 +10,10 @@
 
 	.import movie_player
 
+	.import __SCRN_START__
+
+AVEC = ((__SCRN_START__ >> 6) & $3f0) ^ (($1000 >> 10) & $0f) ^ $300
+
 
 	.code
 	
@@ -39,7 +43,7 @@ init_vic_loop:
 	stx $dc03
 	dex
 	stx $dc02
-	lda #3
+	lda #>AVEC
 	sta $dd00
 	lda #$3f
 	sta $dd02
@@ -298,7 +302,7 @@ vicinit:
 	.byte 0
 	.byte $08
 	.byte 0
-	.byte $15
+	.byte <AVEC
 	.byte $ff
 	.byte 0
 	.byte $ff
