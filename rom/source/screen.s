@@ -1,5 +1,6 @@
 
 	.export screen, init_screen, clear_screen, setrow, nextrow, dumpreg
+	.export printtext
 	.exportzp vreg
 
 	.import __SCRN_START__
@@ -95,6 +96,38 @@ nextrow:
 	inc vscrn+1
 @nocarry:
 	ldy #0
+	rts
+
+
+	;; Print a string following the jsr instruction
+	;; A - scratch
+	;; X - scratch
+	;; Y - incremented by number of characters
+printtext:
+	pla
+	sta vreg
+	pla
+	sta vreg+1
+	ldx #0
+@nextchar:
+	inc vreg
+	bne @nocarry
+	inc vreg+1
+@nocarry:
+	lda (vreg,x)
+	beq @endtext
+	sta (vscrn),y
+	iny
+	cpy #40
+	bcc @nextchar
+	jsr nextrow
+	beq @nextchar
+@endtext:
+	lda vreg+1
+	pha
+	lda vreg
+	pha
+	lda (vreg,x)
 	rts
 
 

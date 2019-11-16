@@ -4,11 +4,7 @@
 	.import screen, init_screen, clear_screen, setrow, nextrow, dumpreg
 	.importzp vreg
 
-	.import initmmc64, selectmmc64, deselectmmc64
-	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
-	.importzp mmcptr, blknum
-
-	.import movie_player
+	.import fileselector, movie_player
 
 
 	.code
@@ -208,48 +204,9 @@ print_message:
 	and #$10
 	bne @wait_here
 
-	jsr clear_screen
-
-	lda #1
-	sta screen
-
-	jsr initmmc64
-
-	sta screen+1
-	lda #'0'
-	adc #0
-	sta screen+2
-
-	jsr selectmmc64
-
-	lda #3
-	sta screen+4
-	
 	lda #0
-	sta blknum
-	sta blknum+1
-	sta blknum+2
-	sta blknum+3
-
-	lda #5
-	sta screen+6
-
-	lda #<(screen+80)
-	sta mmcptr
-	lda #>(screen+80)
-	sta mmcptr+1
-
-	jsr blockread1
-	sta screen+7
-	lda #'0'
-	adc #0
-	sta screen+8
-
-	
-	lda #0
-	sta blknum
 	sta $d020
-
+	jsr fileselector
 	jsr movie_player
 	
 halt_here:
