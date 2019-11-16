@@ -10,6 +10,7 @@ OBJS += $(OBJDIR)/player.o
 OBJS += $(OBJDIR)/stream.o
 OBJS += $(OBJDIR)/fileselector.o
 OBJS += $(OBJDIR)/screen.o
+OBJS += $(OBJDIR)/fatfs.o
 OBJS += $(OBJDIR)/mmc64.o
 
 

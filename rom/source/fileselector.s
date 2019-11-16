@@ -3,6 +3,8 @@
 
 	.export fileselector
 
+	.import fatfs_mount
+
 	.import screen, clear_screen, setrow, nextrow, printtext
 
 	.import initmmc64, selectmmc64, deselectmmc64
@@ -14,11 +16,11 @@
 
 carderror:
 	cmp #8
-	bne @notnocard
+	bne errormsg
 	jsr printtext
 	scrcode "no card inserted@"
-	beq fail	
-@notnocard:	
+	beq fail
+errormsg:
 	jsr printtext
 	scrcode "error!@"
 fail:
@@ -49,30 +51,25 @@ fileselector:
 	scrcode "sdhc@"
 @card_found:
 
+	jsr nextrow
+	jsr printtext
+	scrcode "checking for fat filesystem...@"
+
 	jsr selectmmc64
 
-	lda #3
-	sta screen+124
-	
-	lda #0
-	sta blknum
-	sta blknum+1
-	sta blknum+2
-	sta blknum+3
-
-	lda #5
-	sta screen+126
-
-	lda #<(screen+160)
-	sta mmcptr
-	lda #>(screen+160)
-	sta mmcptr+1
-
-	jsr blockread1
-	sta screen+127
-	lda #'0'
-	adc #0
-	sta screen+128
+	jsr fatfs_mount
+	ldy #30
+	bcc @mount_ok
+	jmp errormsg
+@mount_ok:
+	bne @fat32
+	jsr printtext
+	scrcode "fat16@"
+	beq @fat16
+@fat32:
+	jsr printtext
+	scrcode "fat32@"
+@fat16:
 
 @wait_here_1:
 	lda $dc01
