@@ -1,10 +1,16 @@
 
-	.export screen, clear_screen, setrow, nextrow, dumpreg
+	.export screen, init_screen, clear_screen, setrow, nextrow, dumpreg
 	.exportzp vreg
 
 	.import __SCRN_START__
 	
 screen = __SCRN_START__
+font = $1000
+AVEC = ((screen >> 6) & $3f0) ^ ((font >> 10) & $0f) ^ $300
+
+bgcolor = 0
+bordercolor = 0
+textcolor = $f
 
 
 	.zeropage
@@ -14,6 +20,23 @@ vreg:	.res 2
 
 
 	.code
+
+	;; Init VIC registers; write $1b to $d011 afterwards to unblank screen
+	;; A - scratch
+	;; X - scratch
+	;; Y - preserved
+init_screen:
+	ldx #$d021-$d010
+init_vic_loop:
+	lda vicinit-1,x
+	sta $d010,x
+	dex
+	bne init_vic_loop
+	lda #>AVEC
+	sta $dd00
+	lda #$3f
+	sta $dd02
+	rts	
 
 
 	;; Clear the screen
@@ -28,7 +51,7 @@ clear_screen:
 	sta screen+$100,x
 	sta screen+$200,x
 	sta screen+$300,x
-	lda #$f
+	lda #textcolor
 	sta $d800,x
 	sta $d900,x
 	sta $da00,x
@@ -123,4 +146,21 @@ hexdigit:
 	sta (vscrn),y
 	iny
 	rts
+
+
+vicinit:
+	.byte $0b
+	.byte 0, 0, 0
+	.byte 0
+	.byte $08
+	.byte 0
+	.byte <AVEC
+	.byte $ff
+	.byte 0
+	.byte $ff
+	.byte 0
+	.byte 0
+	.byte 0, 0
+	.byte bordercolor
+	.byte bgcolor
 

@@ -1,7 +1,7 @@
 
 	.macpack cbm
 
-	.import screen, clear_screen, setrow, nextrow, dumpreg
+	.import screen, init_screen, clear_screen, setrow, nextrow, dumpreg
 	.importzp vreg
 
 	.import initmmc64, selectmmc64, deselectmmc64
@@ -9,10 +9,6 @@
 	.importzp mmcptr, blknum
 
 	.import movie_player
-
-	.import __SCRN_START__
-
-AVEC = ((__SCRN_START__ >> 6) & $3f0) ^ (($1000 >> 10) & $0f) ^ $300
 
 
 	.code
@@ -33,20 +29,15 @@ start:
 
 	ldx #$ff
 	txs
-
-	ldx #17
-init_vic_loop:
-	lda vicinit-1,x
-	sta $d010,x
-	dex
-	bne init_vic_loop
+	stx $dc02
+	inx
 	stx $dc03
 	dex
-	stx $dc02
-	lda #>AVEC
-	sta $dd00
-	lda #$3f
-	sta $dd02
+	lda #$7f
+	sta $dc00
+
+	jsr init_screen
+
 	lda #$7f
 	sta $dc0d
 	sta $dd0d
@@ -211,8 +202,6 @@ print_message:
 
 	;; Holding pattern
 
-	lda #$7f
-	sta $dc00
 @wait_here:	
 	inc $d020
 	lda $dc01
@@ -295,22 +284,6 @@ dumpdfreg:
 	ldx vreg
 	jmp nextrow
 
-
-vicinit:
-	.byte $0b
-	.byte 0, 0, 0
-	.byte 0
-	.byte $08
-	.byte 0
-	.byte <AVEC
-	.byte $ff
-	.byte 0
-	.byte $ff
-	.byte 0
-	.byte 0
-	.byte 0, 0
-	.byte 0
-	.byte 0
 
 message:
 	scrcode "hello, this is exrom code."
