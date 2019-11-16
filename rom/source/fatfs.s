@@ -1,5 +1,6 @@
 
-	.export fatfs_mount
+	.export fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
+	.export direntry
 	
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
@@ -9,6 +10,7 @@
 	.align 256
 
 fatfs_block:		.res 512
+direntry:		.res 32
 fat_type:		.res 1
 blocks_per_cluster:	.res 1
 cluster_shift:		.res 1
@@ -16,8 +18,256 @@ root_dir_entries:	.res 2
 fat_start:		.res 4
 root_dir_start:		.res 4
 data_start:		.res 4
-
+cluster:		.res 4
+dir_cnt:		.res 2
+dir_entry_num:		.res 1
+	
 	.code
+
+follow_fat:
+	lda fat_type
+	beq @fat16
+	lda cluster
+	asl a
+	lda cluster+1
+	rol a
+	sta blknum
+	lda cluster+2
+	rol a
+	sta blknum+1
+	lda cluster+3
+	rol a
+	sta blknum+2
+	lda #0
+	rol a
+	bcc @fat32
+@fat16:	
+	lda cluster+1
+	sta blknum
+	lda cluster+2
+	sta blknum+1
+	lda cluster+3
+	sta blknum+2
+	lda #0
+	clc
+@fat32:
+	sta blknum+3
+	lda fat_start
+	adc blknum
+	sta blknum
+	lda fat_start+1
+	adc blknum+1
+	sta blknum+1
+	lda fat_start+2
+	adc blknum+2
+	sta blknum+2
+	lda fat_start+3
+	adc blknum+3
+	sta blknum+3
+	jsr read_block_internal
+	bcs @fail
+	lda cluster
+	ldx fat_type
+	beq @fat16b
+	asl
+	asl
+	tax
+	bcs @upper32
+	lda fatfs_block,x
+	sta cluster
+	lda fatfs_block+1,x
+	sta cluster+1
+	lda fatfs_block+2,x
+	sta cluster+2
+	lda fatfs_block+3,x
+	bcc @lower32
+@upper32:
+	lda fatfs_block+$100,x
+	sta cluster
+	lda fatfs_block+$101,x
+	sta cluster+1
+	lda fatfs_block+$102,x
+	sta cluster+2
+	lda fatfs_block+$103,x
+@lower32:
+	and #$0f
+	sta cluster+3
+	cmp #$0f
+	bne cluster_to_block
+	lda #$ff
+	cmp cluster+2
+	bne cluster_to_block
+	cmp cluster+1
+	bne cluster_to_block
+	lda cluster
+	cmp #$f8
+	bcc cluster_to_block
+@fail:	
+	rts
+
+@fat16b:
+	asl
+	tax
+	bcs @upper16
+	lda fatfs_block,x
+	sta cluster
+	lda fatfs_block+1,x
+	bcc @lower16
+@upper16:	
+	lda fatfs_block+$100,x
+	sta cluster
+	lda fatfs_block+$101,x
+@lower16:	
+	sta cluster+1
+	cmp #$ff
+	bne @ok16
+	lda cluster
+	cmp #$f8
+	bcs @fail
+@ok16:
+	lda #0
+	sta cluster+2
+	sta cluster+3
+	
+cluster_to_block:
+	lda cluster
+	sta blknum
+	lda cluster+1
+	sta blknum+1
+	lda cluster+2
+	sta blknum+2
+	lda cluster+3
+	sta blknum+3
+	ldx cluster_shift
+	beq @noshift
+@doshift:
+	asl blknum
+	rol blknum+1
+	rol blknum+2
+	rol blknum+3
+	dex
+	bne @doshift
+@noshift:
+	clc
+	lda blknum
+	adc data_start
+	sta blknum
+	lda blknum+1
+	adc data_start+1
+	sta blknum+1
+	lda blknum+2
+	adc data_start+2
+	sta blknum+2
+	lda blknum+3
+	adc data_start+3
+	sta blknum+3
+	rts
+
+fatfs_open_rootdir:
+	lda #0
+	sta dir_entry_num
+	lda fat_type
+	beq @opendir_fat16
+	lda root_dir_start
+	sta cluster
+	lda root_dir_start+1
+	sta cluster+1
+	lda root_dir_start+2
+	sta cluster+2
+	lda root_dir_start+3
+	sta cluster+3
+	lda blocks_per_cluster
+	sta dir_cnt
+	lda #1
+	sta dir_cnt+1
+	bne cluster_to_block
+@opendir_fat16:		
+	lda root_dir_start
+	sta blknum
+	lda root_dir_start+1
+	sta blknum+1
+	lda root_dir_start+2
+	sta blknum+2
+	lda root_dir_start+3
+	sta blknum+3
+	lda root_dir_entries
+	sta dir_cnt
+	lda root_dir_entries+1
+	sta dir_cnt+1
+	rts
+
+end_dir:
+	lda #0
+	sta dir_cnt
+	sta dir_cnt+1
+	sec
+	rts
+
+fatfs_next_dirent:
+	lda dir_cnt
+	ora dir_cnt+1
+	beq end_dir
+	lda dir_entry_num
+	bne @nofirst
+	jsr read_block_internal
+	bcs end_dir
+	lda fat_type
+	beq @fat16
+	dec dir_cnt
+@fat16:
+	lda dir_entry_num
+@nofirst:
+	ldy #$e0
+	asl
+	asl
+	asl
+	asl
+	asl
+	tax
+@copydirent:
+	bcs @upper
+	lda fatfs_block,x
+	bcc @lower
+@upper:
+	lda fatfs_block+$100,x
+@lower:
+	sta direntry-$e0,y
+	inx
+	iny
+	bne @copydirent
+	ldx dir_entry_num
+	inx
+	txa
+	and #$0f
+	sta dir_entry_num
+	ldx fat_type
+	beq @dec_cnt
+	cmp #0
+	bne @done
+	lda dir_cnt
+	bne @done
+	jsr follow_fat
+	bcc @more_clusters
+	lda #0
+	sta dir_cnt+1
+	beq @done
+@more_clusters:	
+	lda blocks_per_cluster
+	sta dir_cnt
+@done:
+	clc
+	rts
+@dec_cnt:
+	sec
+	lda dir_cnt
+	sbc #1
+	sta dir_cnt
+	bcs @done
+	dec dir_cnt+1
+	clc
+	rts
+
+	
 
 	;; Try to mount FAT filesystem
 	;; C=1 - failed to mount

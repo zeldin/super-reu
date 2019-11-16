@@ -1,7 +1,7 @@
 
 	.export screen, init_screen, clear_screen, setrow, nextrow, dumpreg
-	.export printtext
-	.exportzp vreg
+	.export printtext, printhex
+	.exportzp vreg, vscrn
 
 	.import __SCRN_START__
 	

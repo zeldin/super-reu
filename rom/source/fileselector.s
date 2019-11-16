@@ -3,14 +3,20 @@
 
 	.export fileselector
 
-	.import fatfs_mount
+	.import fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
+	.import direntry
 
-	.import screen, clear_screen, setrow, nextrow, printtext
-
+	.import screen, clear_screen, setrow, nextrow, printtext, printhex
+	.importzp vscrn
+	
 	.import initmmc64, selectmmc64, deselectmmc64
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
 
+
+	.bss
+
+entry_num:	.res	1
 
 	.code
 
@@ -71,6 +77,65 @@ fileselector:
 	scrcode "fat32@"
 @fat16:
 
+	lda #0
+	sta entry_num
+	jsr fatfs_open_rootdir
+	lda #4
+	jsr setrow
+	jsr drawline
+	jsr nextrow
+@next_entry:
+	jsr fatfs_next_dirent
+	ldy #0
+	bcs @enddir
+	lda direntry
+	beq @enddir
+	cmp #$e5
+	beq @next_entry
+	lda direntry+11
+	and #$3f
+	cmp #$0f
+	beq @next_entry
+	lda entry_num
+	cmp #16
+	bcs @moredir
+	ldx #0
+@displayname:
+	lda direntry,x
+	inx
+	cmp #$40
+	bcc @notalpha
+	and #$3f
+@notalpha:
+	cpy #8
+	bne @notdot
+	dex
+	lda #'.'
+@notdot:
+	sta (vscrn),y
+	iny
+	cpy #12
+	bcc @displayname
+
+	iny
+	lda direntry+21
+	jsr printhex
+	lda direntry+20
+	jsr printhex
+	lda direntry+27
+	jsr printhex
+	lda direntry+26
+	jsr printhex
+
+	jsr nextrow
+	inc entry_num
+	bne @next_entry
+@moredir:
+@enddir:
+	lda #21
+	jsr setrow
+	jsr drawline
+
 @wait_here_1:
 	lda $dc01
 	and #$10
@@ -88,4 +153,13 @@ fileselector:
 	lda #5
 	sta blknum+2
 
+	rts
+
+drawline:
+	lda #$43
+@drawloop:
+	sta (vscrn),y
+	iny
+	cpy #30
+	bcc @drawloop
 	rts
