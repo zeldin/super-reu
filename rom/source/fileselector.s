@@ -26,7 +26,7 @@ cluster1:	.res	files_per_page
 cluster2:	.res	files_per_page
 cluster3:	.res	files_per_page
 
-filename:	.res	26
+filename:	.res	27
 
 entry_num:	.res	1
 entry_cnt:	.res	1
@@ -158,12 +158,15 @@ next_page:
 	ldx #0
 @displayname:
 	lda filename,y
+	cpy #26
+	beq @lastchar
 	jsr ascii2screen
 	sta (vscrn),y
 	iny
-	cpy #26
-	bcc @displayname
-
+	bne @displayname
+@lastchar:
+	sta (vscrn),y
+	iny
 	lda #$18
 	bit direntry+11
 	bne @nosize
@@ -364,7 +367,7 @@ colorize:
 
 drawline:
 	lda #$40
-	ldy #34
+	ldy #35
 @drawloop:
 	sta (vscrn),y
 	dey
@@ -373,7 +376,7 @@ drawline:
 	bne setlinecolor
 
 clearline:
-	ldy #34
+	ldy #35
 	lda #' '
 @clearloop:
 	sta (vscrn),y
@@ -388,7 +391,7 @@ setlinecolor:
 	ora #$d8
 	sta vscrn+1
 	tya
-	ldy #34
+	ldy #35
 @colorloop:
 	sta (vscrn),y
 	dey
@@ -403,7 +406,7 @@ invert_line:
 	lda entry_num
 	adc #5
 	jsr setrow
-	ldy #34
+	ldy #35
 @invertloop:
 	lda (vscrn),y
 	eor #$80
@@ -484,7 +487,7 @@ longfilename:
 @spacefill:
 	sta filename,x
 	inx
-	cpx #26
+	cpx #27
 	bcc @spacefill
 @longdone:
 	rts
@@ -509,8 +512,14 @@ longfilename:
 	bcs @badlong
 	and #$3f
 	tax
-	bne @oklong
 	beq @badlong
+	lda #' '
+	cpx #3
+	bcc @nooverflow
+	lda #$69
+@nooverflow:
+	sta filename+26
+	jmp @oklong
 
 
 shortfilename:
@@ -535,7 +544,7 @@ shortfilename:
 @clear_filename:
 	sta filename,y
 	iny
-	cpy #26
+	cpy #27
 	bcc @clear_filename
 	cmp filename+9
 	bne @use_longname
