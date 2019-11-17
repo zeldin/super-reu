@@ -1,6 +1,7 @@
 
 	.export fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
-	.export direntry
+	.export cluster_to_block, follow_fat
+	.export direntry, cluster
 	
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
@@ -241,7 +242,7 @@ fatfs_next_dirent:
 	and #$0f
 	sta dir_entry_num
 	ldx fat_type
-	beq @dec_cnt
+	beq @fat16_fixup
 	cmp #0
 	bne @done
 	lda dir_cnt
@@ -257,7 +258,9 @@ fatfs_next_dirent:
 @done:
 	clc
 	rts
-@dec_cnt:
+@fat16_fixup:
+	stx direntry+20
+	stx direntry+21
 	sec
 	lda dir_cnt
 	sbc #1
@@ -267,7 +270,6 @@ fatfs_next_dirent:
 	clc
 	rts
 
-	
 
 	;; Try to mount FAT filesystem
 	;; C=1 - failed to mount

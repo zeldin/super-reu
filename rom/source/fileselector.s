@@ -4,7 +4,8 @@
 	.export fileselector
 
 	.import fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
-	.import direntry
+	.import cluster_to_block, follow_fat
+	.import direntry, cluster
 
 	.import screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vscrn
@@ -16,7 +17,17 @@
 
 	.bss
 
+	.align 16
+
+cluster0:	.res	16
+cluster1:	.res	16
+cluster2:	.res	16
+cluster3:	.res	16
+
 entry_num:	.res	1
+entry_cnt:	.res	1
+key:		.res	1
+oldkey:		.res	1
 
 	.code
 
@@ -35,6 +46,7 @@ fail:
 fileselector:
 	jsr clear_screen
 	lda #0
+	sta oldkey
 	jsr setrow
 	jsr printtext
 	scrcode "checking sdcard...@"
@@ -127,33 +139,122 @@ fileselector:
 	lda direntry+26
 	jsr printhex
 
+	ldx entry_num
+	lda direntry+26
+	sta cluster0,x
+	lda direntry+27
+	sta cluster1,x
+	lda direntry+20
+	sta cluster2,x
+	lda direntry+21
+	sta cluster3,x
+	
 	jsr nextrow
-	inc entry_num
+	inx
+	stx entry_num
 	bne @next_entry
 @moredir:
 @enddir:
 	lda #21
 	jsr setrow
 	jsr drawline
+	lda entry_num
+	sta entry_cnt
+	bne selection
+	lda #12
+	jsr setrow
+	ldy #10
+	jsr printtext
+	scrcode "no files@"
+@nofiles:
+	jmp @nofiles
 
-@wait_here_1:
-	lda $dc01
-	and #$10
-	beq @wait_here_1
-@wait_here_2:
-	lda $dc01
-	and #$10
-	bne @wait_here_2
-	
-	lda #$40
-	sta blknum
-	sta $d020
-	lda #$2d ; $5a
-	sta blknum+1
-	lda #5
-	sta blknum+2
 
-	rts
+selection:
+	lda #0
+	sta entry_num
+@donekey:
+	jsr invert_line
+@nokey:
+	clc
+	rol $dc00
+	lda $dc01
+	ora #$79
+	sta key
+	sec
+	rol $dc00
+	lda $dc01
+	lsr
+	lsr
+	lsr
+	ora #$ef
+	and key
+	sta key
+	lda #$bf
+	sta $dc00
+	lda $dc01
+	ora #$ef
+	and key
+	sta key
+	sec
+	rol $dc00
+	cmp oldkey
+	beq @nokey
+	sta oldkey
+	jsr invert_line
+	lda #2
+	bit key
+	beq @return
+	lda #$10
+	bit key
+	beq @shift
+	lda #4
+	bit key
+	beq @right
+	lda #$80
+	bit key
+	bne @donekey
+@down:
+	ldx entry_num
+	inx
+	cpx entry_cnt
+	bne @okdown
+	ldx #0
+@okdown:	
+	stx entry_num
+	jmp @donekey
+@right:
+	jmp @donekey
+@shift:
+	lda #4
+	bit key
+	beq @left
+	lda #$80
+	bit key
+	bne @donekey
+@up:
+	ldx entry_num
+	bne @okup
+	ldx entry_cnt
+@okup:
+	dex
+	stx entry_num
+	jmp @donekey
+@left:
+	jmp @donekey
+
+@return:
+	ldx entry_num
+	lda cluster0,x
+	sta cluster
+	lda cluster1,x
+	sta cluster+1
+	lda cluster2,x
+	sta cluster+2
+	lda cluster3,x
+	sta cluster+3
+	jmp cluster_to_block
+
 
 drawline:
 	lda #$43
@@ -162,4 +263,18 @@ drawline:
 	iny
 	cpy #30
 	bcc @drawloop
+	rts
+
+invert_line:
+	clc
+	lda entry_num
+	adc #5
+	jsr setrow
+	ldy #29
+@invertloop:
+	lda (vscrn),y
+	eor #$80
+	sta (vscrn),y
+	dey
+	bpl @invertloop
 	rts
