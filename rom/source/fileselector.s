@@ -178,8 +178,6 @@ next_page:
 	jsr printhex
 @nosize:
 	ldx entry_num
-	lda direntry+11
-	sta file_flags,x
 	lda direntry+26
 	sta cluster0,x
 	lda direntry+27
@@ -188,7 +186,9 @@ next_page:
 	sta cluster2,x
 	lda direntry+21
 	sta cluster3,x
-	
+	lda direntry+11
+	sta file_flags,x
+	jsr colorize
 	jsr nextrow
 	inx
 	stx entry_num
@@ -339,17 +339,38 @@ selection:
 	jsr fatfs_open_subdir
 	jmp next_dir
 @regular_file:
+	lda #0
+	jsr setrow
+	ldx #0
+@cleanup_screen:
+	jsr clearline
+	jsr nextrow
+	inx
+	cpx #24
+	bcc @cleanup_screen
 	jmp cluster_to_block
 
 
+colorize:
+	and #$18
+	beq setlinedefcolor
+	and #$08
+	beq @notlabel
+	ldy #6
+	bne setlinecolor
+@notlabel:
+	ldy #13
+	bne setlinecolor
+
 drawline:
 	lda #$40
+	ldy #34
 @drawloop:
 	sta (vscrn),y
-	iny
-	cpy #35
-	bcc @drawloop
-	rts
+	dey
+	bpl @drawloop
+	ldy #11
+	bne setlinecolor
 
 clearline:
 	ldy #34
@@ -358,6 +379,22 @@ clearline:
 	sta (vscrn),y
 	dey
 	bpl @clearloop
+setlinedefcolor:
+	ldy $d800
+setlinecolor:
+	lda vscrn+1
+	pha
+	and #$03
+	ora #$d8
+	sta vscrn+1
+	tya
+	ldy #34
+@colorloop:
+	sta (vscrn),y
+	dey
+	bpl @colorloop
+	pla
+	sta vscrn+1
 	iny
 	rts
 
