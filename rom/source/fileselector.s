@@ -15,20 +15,22 @@
 	.importzp mmcptr, blknum
 
 
+files_per_page = 16
+
 	.bss
 
-	.align 16
-
-cluster0:	.res	16
-cluster1:	.res	16
-cluster2:	.res	16
-cluster3:	.res	16
+cluster0:	.res	files_per_page
+cluster1:	.res	files_per_page
+cluster2:	.res	files_per_page
+cluster3:	.res	files_per_page
 
 entry_num:	.res	1
 entry_cnt:	.res	1
 key:		.res	1
 oldkey:		.res	1
-
+skip_cnt:	.res	2
+tmp_skip_cnt:	.res	2
+	
 	.code
 
 carderror:
@@ -90,12 +92,33 @@ fileselector:
 @fat16:
 
 	lda #0
+	sta skip_cnt
+	sta skip_cnt+1
+next_page:
+	lda #' '
+	sta screen+(3*40)+0
+	sta screen+(3*40)+29
+	clc
+	lda skip_cnt
+	adc #1
+	sta tmp_skip_cnt
+	lda skip_cnt+1
+	adc #0
+	sta tmp_skip_cnt+1
+	lda #0
 	sta entry_num
 	jsr fatfs_open_rootdir
 	lda #4
 	jsr setrow
 	jsr drawline
 	jsr nextrow
+@skip_entry:
+	sec
+	lda tmp_skip_cnt
+	sbc #1
+	sta tmp_skip_cnt
+	bcs @next_entry
+	dec tmp_skip_cnt+1
 @next_entry:
 	jsr fatfs_next_dirent
 	ldy #0
@@ -108,8 +131,11 @@ fileselector:
 	and #$3f
 	cmp #$0f
 	beq @next_entry
+	lda tmp_skip_cnt
+	ora tmp_skip_cnt+1
+	bne @skip_entry
 	lda entry_num
-	cmp #16
+	cmp #files_per_page
 	bcs @moredir
 	ldx #0
 @displayname:
@@ -154,14 +180,31 @@ fileselector:
 	stx entry_num
 	bne @next_entry
 @moredir:
+	lda #'>'
+	sta screen+(3*40)+29
 @enddir:
-	lda #21
+	lda skip_cnt
+	ora skip_cnt+1
+	beq @firstpage
+	lda #'<'
+	sta screen+(3*40)+0
+@firstpage:
+	ldx entry_num
+	stx entry_cnt
+@clear:
+	cpx #files_per_page
+	beq @noclear
+	jsr clearline
+	jsr nextrow
+	inx
+	bne @clear
+@noclear:
+	lda #5+files_per_page
 	jsr setrow
 	jsr drawline
-	lda entry_num
-	sta entry_cnt
+	lda entry_cnt
 	bne selection
-	lda #12
+	lda #4+(files_per_page/2)
 	jsr setrow
 	ldy #10
 	jsr printtext
@@ -222,16 +265,27 @@ selection:
 	ldx #0
 @okdown:	
 	stx entry_num
+@to_donekey:
 	jmp @donekey
 @right:
-	jmp @donekey
+	lda screen+(3*40)+29
+	cmp #' '
+	beq @donekey
+	clc
+	lda skip_cnt
+	adc #files_per_page
+	sta skip_cnt
+	bcc @doneright
+	inc skip_cnt+1
+@doneright:
+	jmp next_page
 @shift:
 	lda #4
 	bit key
 	beq @left
 	lda #$80
 	bit key
-	bne @donekey
+	bne @to_donekey
 @up:
 	ldx entry_num
 	bne @okup
@@ -241,7 +295,17 @@ selection:
 	stx entry_num
 	jmp @donekey
 @left:
-	jmp @donekey
+	lda screen+(3*40)+0
+	cmp #' '
+	beq @to_donekey
+	sec
+	lda skip_cnt
+	sbc #files_per_page
+	sta skip_cnt
+	bcs @doneleft
+	dec skip_cnt+1
+@doneleft:
+	jmp next_page
 
 @return:
 	ldx entry_num
@@ -263,6 +327,15 @@ drawline:
 	iny
 	cpy #30
 	bcc @drawloop
+	rts
+
+clearline:
+	ldy #29
+	lda #' '
+@clearloop:
+	sta (vscrn),y
+	dey
+	bpl @clearloop
 	rts
 
 invert_line:
