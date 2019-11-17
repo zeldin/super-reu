@@ -500,6 +500,13 @@ shortfilename:
 	iny
 	cpy #26
 	bcc @clear_filename
+	cmp filename+9
+	bne @use_longname
+	cmp filename+10
+	bne @use_longname
+	cmp filename+11
+	bne @use_longname
+	sta filename+8
 @use_longname:
 	lda #0
 	sta longfile_status
