@@ -97,6 +97,11 @@ fileselector:
 	scrcode "FAT32@"
 @fat16:
 
+	lda #23
+	jsr setrow
+	jsr printtext
+	scrcode "Navigate with CRSR, select with RETURN@"
+
 	jsr fatfs_open_rootdir
 next_dir:
 	lda #0
@@ -376,7 +381,7 @@ drawline:
 	bne setlinecolor
 
 clearline:
-	ldy #35
+	ldy #39
 	lda #' '
 @clearloop:
 	sta (vscrn),y
@@ -391,7 +396,7 @@ setlinecolor:
 	ora #$d8
 	sta vscrn+1
 	tya
-	ldy #35
+	ldy #39
 @colorloop:
 	sta (vscrn),y
 	dey
