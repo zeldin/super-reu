@@ -246,7 +246,7 @@ dumpdfreg:
 
 
 message:
-	scrcode "hello, this is exrom code."
+	scrcode "Hello, this is EXROM code."
 message_length = * - message
 
 

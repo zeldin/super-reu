@@ -39,11 +39,11 @@ carderror:
 	cmp #8
 	bne errormsg
 	jsr printtext
-	scrcode "no card inserted@"
+	scrcode "No card inserted@"
 	beq fail
 errormsg:
 	jsr printtext
-	scrcode "error!@"
+	scrcode "Error!@"
 fail:
 	jmp fail
 
@@ -53,7 +53,7 @@ fileselector:
 	sta oldkey
 	jsr setrow
 	jsr printtext
-	scrcode "checking sdcard...@"
+	scrcode "Checking SDCARD...@"
 	jsr initmmc64
 	ldy #18
 	bcs carderror
@@ -62,20 +62,20 @@ fileselector:
 	cmp #3
 	bcs @sdhc
 	jsr printtext
-	scrcode "sd1@"
+	scrcode "SD1@"
 	beq @card_found
 @sd2:
 	jsr printtext
-	scrcode "sd2@"
+	scrcode "SD2@"
 	beq @card_found
 @sdhc:
 	jsr printtext
-	scrcode "sdhc@"
+	scrcode "SDHC@"
 @card_found:
 
 	jsr nextrow
 	jsr printtext
-	scrcode "checking for fat filesystem...@"
+	scrcode "Checking for FAT filesystem...@"
 
 	jsr selectmmc64
 
@@ -86,11 +86,11 @@ fileselector:
 @mount_ok:
 	bne @fat32
 	jsr printtext
-	scrcode "fat16@"
+	scrcode "FAT16@"
 	beq @fat16
 @fat32:
 	jsr printtext
-	scrcode "fat32@"
+	scrcode "FAT32@"
 @fat16:
 
 	jsr fatfs_open_rootdir
@@ -149,10 +149,7 @@ next_page:
 @displayname:
 	lda direntry,x
 	inx
-	cmp #$40
-	bcc @notalpha
-	and #$3f
-@notalpha:
+	jsr ascii2screen
 	cpy #8
 	bne @notdot
 	dex
@@ -221,7 +218,7 @@ next_page:
 	jsr setrow
 	ldy #10
 	jsr printtext
-	scrcode "no files@"
+	scrcode "No files@"
 @nofiles:
 	jmp @nofiles
 
@@ -342,7 +339,7 @@ selection:
 
 
 drawline:
-	lda #$43
+	lda #$40
 @drawloop:
 	sta (vscrn),y
 	iny
@@ -372,4 +369,36 @@ invert_line:
 	sta (vscrn),y
 	dey
 	bpl @invertloop
+	rts
+
+ascii2screen:	
+	cmp #$20
+	bcc @badchar
+	cmp #$7f
+	bcs @badchar
+	cmp #$40
+	beq @tolower
+	cmp #$5b
+	bcc @screendone
+	cmp #$7e
+	beq @tilde
+	cmp #$60
+	beq @backtick
+	cmp #$5f
+	beq @underscore
+@tolower:
+	and #$1f
+@screendone:
+	rts
+@badchar:
+	lda #$64
+	rts
+@tilde:
+	lda #$7a
+	rts
+@backtick:
+	lda #$6d
+	rts
+@underscore:
+	lda #$6f
 	rts

@@ -6,7 +6,7 @@
 	.import __SCRN_START__
 	
 screen = __SCRN_START__
-font = $1000
+font = $1800
 AVEC = ((screen >> 6) & $3f0) ^ ((font >> 10) & $0f) ^ $300
 
 bgcolor = 0
