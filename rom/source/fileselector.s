@@ -26,12 +26,16 @@ cluster1:	.res	files_per_page
 cluster2:	.res	files_per_page
 cluster3:	.res	files_per_page
 
+filename:	.res	26
+
 entry_num:	.res	1
 entry_cnt:	.res	1
 key:		.res	1
 oldkey:		.res	1
 skip_cnt:	.res	2
 tmp_skip_cnt:	.res	2
+longfile_status:.res	1
+
 	
 	.code
 
@@ -112,6 +116,8 @@ next_page:
 	lda #0
 	sta entry_num
 	jsr fatfs_rewind_dir
+	lda #0
+	sta longfile_status
 	lda #4
 	jsr setrow
 	jsr drawline
@@ -137,7 +143,11 @@ next_page:
 	lda direntry+11
 	and #$3f
 	cmp #$0f
-	beq @next_entry
+	bne @not_longfile
+	jsr longfilename
+	jmp @next_entry
+@not_longfile:
+	jsr shortfilename
 	lda tmp_skip_cnt
 	ora tmp_skip_cnt+1
 	bne @skip_entry
@@ -147,17 +157,11 @@ next_page:
 	jsr clearline
 	ldx #0
 @displayname:
-	lda direntry,x
-	inx
+	lda filename,y
 	jsr ascii2screen
-	cpy #8
-	bne @notdot
-	dex
-	lda #'.'
-@notdot:
 	sta (vscrn),y
 	iny
-	cpy #12
+	cpy #26
 	bcc @displayname
 
 	lda #$18
@@ -343,12 +347,12 @@ drawline:
 @drawloop:
 	sta (vscrn),y
 	iny
-	cpy #30
+	cpy #35
 	bcc @drawloop
 	rts
 
 clearline:
-	ldy #29
+	ldy #34
 	lda #' '
 @clearloop:
 	sta (vscrn),y
@@ -362,7 +366,7 @@ invert_line:
 	lda entry_num
 	adc #5
 	jsr setrow
-	ldy #29
+	ldy #34
 @invertloop:
 	lda (vscrn),y
 	eor #$80
@@ -391,7 +395,7 @@ ascii2screen:
 @screendone:
 	rts
 @badchar:
-	lda #$64
+	lda #$5e
 	rts
 @tilde:
 	lda #$7a
@@ -400,5 +404,103 @@ ascii2screen:
 	lda #$6d
 	rts
 @underscore:
-	lda #$6f
+	lda #$64
+	rts
+
+longfilename:
+	lda #$40
+	bit direntry
+	bne @firstlong
+	ldx direntry
+	beq @badlong
+	inx
+	cpx longfile_status
+	bne @badlong
+	dex
+@oklong:
+	stx longfile_status
+	cpx #3
+	bcs @longdone
+	dex
+	beq @x0
+	ldx #13
+@x0:
+	ldy #1
+	clc
+	jsr @get2ucs
+	jsr @get2ucs
+	jsr @get1ucs
+	ldy #$e
+	jsr @get2ucs
+	jsr @get2ucs
+	jsr @get2ucs
+	ldy #$1c
+@get2ucs:
+	jsr @get1ucs
+@get1ucs:
+	bcs @skip
+	lda direntry+1,y
+	bne @nonasciichar
+	lda direntry,y
+	bne @asciichar
+	lda #' '
+@spacefill:
+	sta filename,x
+	inx
+	cpx #26
+	bcc @spacefill
+@longdone:
+	rts
+@nonasciichar:
+	lda #$ff
+@asciichar:
+	sta filename,x
+	iny
+	iny
+	inx
+	clc
+@skip:
+	rts
+
+@badlong:
+	lda #0
+	sta longfile_status
+	rts
+@firstlong:
+	lda direntry
+	cmp #$80
+	bcs @badlong
+	and #$3f
+	tax
+	bne @oklong
+	beq @badlong
+
+
+shortfilename:
+	lda longfile_status
+	cmp #1
+	beq @use_longname
+	ldx #0
+	ldy #0
+@copyname:
+	lda direntry,x
+	inx
+	cpy #8
+	bne @notdot
+	dex
+	lda #'.'
+@notdot:
+	sta filename,y
+	iny
+	cpy #12
+	bcc @copyname
+	lda #' '
+@clear_filename:
+	sta filename,y
+	iny
+	cpy #26
+	bcc @clear_filename
+@use_longname:
+	lda #0
+	sta longfile_status
 	rts
