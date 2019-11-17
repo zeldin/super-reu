@@ -1,5 +1,6 @@
 
 	.export fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
+	.export fatfs_open_subdir, fatfs_rewind_dir
 	.export cluster_to_block, follow_fat
 	.export direntry, cluster
 	
@@ -20,9 +21,11 @@ fat_start:		.res 4
 root_dir_start:		.res 4
 data_start:		.res 4
 cluster:		.res 4
+dir_cluster:		.res 4
 dir_cnt:		.res 2
 dir_entry_num:		.res 1
-	
+dir_type:		.res 1
+		
 	.code
 
 follow_fat:
@@ -164,11 +167,43 @@ cluster_to_block:
 	sta blknum+3
 	rts
 
+fatfs_open_subdir:
+	lda cluster
+	sta dir_cluster
+	lda cluster+1
+	sta dir_cluster+1
+	lda cluster+2
+	sta dir_cluster+2
+	lda cluster+3
+	sta dir_cluster+3
+	ora cluster+2
+	ora cluster+1
+	ora cluster
+	beq fatfs_open_rootdir
+	lda #2
+	sta dir_type
+	
+fatfs_rewind_dir:
+	lda dir_type
+	cmp #2
+	bcc fatfs_open_rootdir
+	lda dir_cluster
+	sta cluster
+	lda dir_cluster+1
+	sta cluster+1
+	lda dir_cluster+2
+	sta cluster+2
+	lda dir_cluster+3
+	sta cluster+3
+	lda #0
+	sta dir_entry_num
+	beq opendir_fat32
 fatfs_open_rootdir:
 	lda #0
 	sta dir_entry_num
 	lda fat_type
-	beq @opendir_fat16
+	sta dir_type
+	beq opendir_fat16
 	lda root_dir_start
 	sta cluster
 	lda root_dir_start+1
@@ -177,12 +212,13 @@ fatfs_open_rootdir:
 	sta cluster+2
 	lda root_dir_start+3
 	sta cluster+3
+opendir_fat32:
 	lda blocks_per_cluster
 	sta dir_cnt
 	lda #1
 	sta dir_cnt+1
-	bne cluster_to_block
-@opendir_fat16:		
+	jmp cluster_to_block
+opendir_fat16:		
 	lda root_dir_start
 	sta blknum
 	lda root_dir_start+1
@@ -212,7 +248,7 @@ fatfs_next_dirent:
 	bne @nofirst
 	jsr read_block_internal
 	bcs end_dir
-	lda fat_type
+	lda dir_type
 	beq @fat16
 	dec dir_cnt
 @fat16:
@@ -241,7 +277,7 @@ fatfs_next_dirent:
 	txa
 	and #$0f
 	sta dir_entry_num
-	ldx fat_type
+	ldx dir_type
 	beq @fat16_fixup
 	cmp #0
 	bne @done

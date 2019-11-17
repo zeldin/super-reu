@@ -4,6 +4,7 @@
 	.export fileselector
 
 	.import fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
+	.import fatfs_open_subdir, fatfs_rewind_dir
 	.import cluster_to_block, follow_fat
 	.import direntry, cluster
 
@@ -19,6 +20,7 @@ files_per_page = 16
 
 	.bss
 
+file_flags:	.res	files_per_page
 cluster0:	.res	files_per_page
 cluster1:	.res	files_per_page
 cluster2:	.res	files_per_page
@@ -91,6 +93,8 @@ fileselector:
 	scrcode "fat32@"
 @fat16:
 
+	jsr fatfs_open_rootdir
+next_dir:
 	lda #0
 	sta skip_cnt
 	sta skip_cnt+1
@@ -107,7 +111,7 @@ next_page:
 	sta tmp_skip_cnt+1
 	lda #0
 	sta entry_num
-	jsr fatfs_open_rootdir
+	jsr fatfs_rewind_dir
 	lda #4
 	jsr setrow
 	jsr drawline
@@ -140,6 +144,7 @@ next_page:
 	lda entry_num
 	cmp #files_per_page
 	bcs @moredir
+	jsr clearline
 	ldx #0
 @displayname:
 	lda direntry,x
@@ -172,6 +177,8 @@ next_page:
 	jsr printhex
 @nosize:
 	ldx entry_num
+	lda direntry+11
+	sta file_flags,x
 	lda direntry+26
 	sta cluster0,x
 	lda direntry+27
@@ -323,6 +330,14 @@ selection:
 	sta cluster+2
 	lda cluster3,x
 	sta cluster+3
+	lda file_flags,x
+	and #$18
+	beq @regular_file
+	and #$08
+	bne @to_donekey
+	jsr fatfs_open_subdir
+	jmp next_dir
+@regular_file:
 	jmp cluster_to_block
 
 
@@ -342,6 +357,7 @@ clearline:
 	sta (vscrn),y
 	dey
 	bpl @clearloop
+	iny
 	rts
 
 invert_line:
