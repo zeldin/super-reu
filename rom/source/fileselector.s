@@ -122,9 +122,12 @@ next_page:
 @next_entry:
 	jsr fatfs_next_dirent
 	ldy #0
-	bcs @enddir
+	bcs @to_enddir
 	lda direntry
-	beq @enddir
+	bne @not_enddir
+@to_enddir:
+	jmp @enddir
+@not_enddir:
 	cmp #$e5
 	beq @next_entry
 	lda direntry+11
@@ -155,16 +158,19 @@ next_page:
 	cpy #12
 	bcc @displayname
 
+	lda #$18
+	bit direntry+11
+	bne @nosize
 	iny
-	lda direntry+21
+	lda direntry+31
 	jsr printhex
-	lda direntry+20
+	lda direntry+30
 	jsr printhex
-	lda direntry+27
+	lda direntry+29
 	jsr printhex
-	lda direntry+26
+	lda direntry+28
 	jsr printhex
-
+@nosize:
 	ldx entry_num
 	lda direntry+26
 	sta cluster0,x
@@ -178,7 +184,7 @@ next_page:
 	jsr nextrow
 	inx
 	stx entry_num
-	bne @next_entry
+	jmp @next_entry
 @moredir:
 	lda #'>'
 	sta screen+(3*40)+29
