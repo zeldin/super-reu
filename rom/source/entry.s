@@ -204,13 +204,16 @@ print_message:
 	and #$10
 	bne @wait_here
 
+@next_movie:
 	lda #0
 	sta $d020
 	jsr fileselector
 	jsr movie_player
-	
-halt_here:
-	jmp halt_here
+	jsr init_screen
+	jsr clear_screen
+	lda #$1b
+	sta $d011
+	jmp @next_movie
 
 
 waitdma:
