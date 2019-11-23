@@ -100,6 +100,7 @@ fileselector:
 	bcc @mount_ok
 	jmp errormsg
 @mount_ok:
+	cmp #0
 	bne @fat32
 	jsr printtext
 	scrcode "FAT16@"
