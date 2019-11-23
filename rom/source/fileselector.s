@@ -11,7 +11,7 @@
 	.import screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vscrn
 	
-	.import initmmc64, selectmmc64, deselectmmc64
+	.import initmmc64, selectmmc64, deselectmmc64, checkcardmmc64
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
 
@@ -39,17 +39,29 @@ longfile_status:.res	1
 	
 	.code
 
+errormsg:
+	jsr printtext
+	scrcode "Error!@"
+	lda #4
+	jsr setrow
+	jsr printtext
+	scrcode "Please remove SDCARD@"
+@waitremove:
+	jsr checkcardmmc64
+	beq @waitremove
+	bne fileselector
 carderror:
 	cmp #8
 	bne errormsg
 	jsr printtext
 	scrcode "No card inserted@"
-	beq fail
-errormsg:
+	lda #4
+	jsr setrow
 	jsr printtext
-	scrcode "Error!@"
-fail:
-	jmp fail
+	scrcode "Please insert an SDCARD@"
+@waitinsert:
+	jsr checkcardmmc64
+	bne @waitinsert
 
 fileselector:
 	jsr clear_screen
@@ -232,8 +244,10 @@ next_page:
 	jsr printtext
 	scrcode "No files@"
 @nofiles:
-	jmp @nofiles
-
+	jsr checkcardmmc64
+	beq @nofiles
+cardremoved:	
+	jmp fileselector
 
 selection:
 	lda #0
@@ -241,6 +255,8 @@ selection:
 @donekey:
 	jsr invert_line
 @nokey:
+	jsr checkcardmmc64
+	bne cardremoved
 	clc
 	rol $dc00
 	lda $dc01

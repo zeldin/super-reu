@@ -1,5 +1,5 @@
 
-	.export initmmc64, selectmmc64, deselectmmc64
+	.export initmmc64, selectmmc64, deselectmmc64, checkcardmmc64
 	.export blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.exportzp mmcptr, blknum
 
@@ -364,4 +364,14 @@ mmc64cmdcommon2:
 	stx $de10
 	lda $de10
 @gotr1:	
+	rts
+
+	;; Check if card present
+	;; A - scratch
+	;; X - preserved
+	;; Y - preserved
+	;; Z - out: 1=present 0=not present
+checkcardmmc64:
+	lda $de12
+	and #$08
 	rts
