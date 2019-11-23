@@ -19,17 +19,13 @@ sdtype: .res 1
 ; A: output, 1=SD1, 2=SD2, 3=SDHC, 8=no card, 0=communication failure
 	
 initmmc64:
-;	inc $0427
-;	bne @foo
-;	inc $0426
-@foo:
 	lda #0
 	sta sdtype
 	lda $de11	;get contents of MMC64 control register
 	and #%10111011	;set 250khz & write trigger mode
 	ora #%00000010	;disable card select
 	sta $de11	;update control register
-	ldx #$0a	;initialize counter (10*8 pulses)
+	ldx #$50	;initialize counter (80*8 pulses)
 	ldy #$ff	;initialize value to be written (bits must be all high)
 @mmcinitloop:	
 	sty $de10	;send 8 pulses to the card
@@ -38,15 +34,14 @@ initmmc64:
 	and #$01	;all bits shiftet out?
 	bne @busywait	;nope, so wait
 	dex		;decrement counter
-	bne @mmcinitloop;until 80 pulses sent
+	bne @mmcinitloop;until 640 pulses sent
 	lda $de12		;is there a card at all ?
 	and #$08		
 	bne @error		;nope, bail out
 	lda $de11	;pull card chip select line down for SPI communication
 	and #%11111101
 	sta $de11
-	ldy #$08		;we send 8 command bytes to the card
-	ldx #$05		;we wait for the response up to 5 bytes
+	ldy #$06		;we send 6 command bytes to the card
 @mmc64resetloop:
 	lda @resetcmd-1,y	;grab command byte
 	sta $de10		;and fire it to the card
@@ -56,13 +51,10 @@ initmmc64:
 	bne @resetbusy
 	dey			;decrease command counter
 	bne @mmc64resetloop	;until the entire command has been sent
-	lda $de10		;now we check the card response
+	jsr @readr1slow
 	cmp #$01		;did it accept the command ?
 	beq @done		;ok, everything is fine !
-	dex			;need to check more bytes before retransmit?
-	beq initmmc64		;no, try again
-	iny
-	bne @mmc64resetloop	;get the next byte
+
 @commfail:
 	lda #0
 @error:
@@ -71,33 +63,37 @@ initmmc64:
 	bcs @leave
 
 @done:
-	lda $de11		;switch to 8Mhz
-	ora #%00000100
-	sta $de11
-
-	ldy #$08		;try to send CMD8
+	ldy #$06		;try to send CMD8
 @sendifcondloop:	
 	lda @sendifcondcmd-1,y	;grab command byte
 	sta $de10		;and fire it to the card
+@ifcondbusy:
+	lda $de12		;we check the busy bit
+	and #$01		;to ensure that the transfer is safe
+	bne @ifcondbusy
 	dey			;decrease command counter	
 	bne @sendifcondloop	;until entire command has been sent
-	tax
-	jsr mmc64readr1
+	jsr @readr1slow
 	bmi @commfail
 	and #$04		;did the card accept the command
 	bne @issd1
-	stx $de10
-	stx $de10
-	stx $de10
-	lda $de10
+	jsr @getbyteslow
+	jsr @getbyteslow
+	jsr @getbyteslow
 	cmp #$01
 	bne @commfail
-	stx $de10
-	lda $de10
+	jsr @getbyteslow
 	cmp #$aa
 	bne @commfail
+
 	ldy #$40	; request HC mode
 @issd1:
+	jsr deselectmmc64
+	lda $de11		;switch to 8Mhz
+	ora #%00000100
+	sta $de11
+	jsr selectmmc64
+
 @activate:
 	lda #$77	; CMD55, application command follows
 	jsr mmc64cmd
@@ -129,17 +125,51 @@ initmmc64:
 @leave:
 	jsr deselectmmc64
 	tya
+@done3:
 	rts
 
+@readr1slow:
+	ldx #6
+@waitr1slow:
+	lda $de10		;now we check the card response
+	bpl @done3		;got R1
+	dex
+	bmi @r1fail
+	lda #$ff
+	sta $de10
+@waitr1busy:	
+	lda $de12		;we check the busy bit
+	and #$01		;to ensure that the transfer is safe
+	bne @waitr1busy
+	beq @waitr1slow
+@r1fail:
+	txa
+	rts
+
+@getbyteslow:
+	lda #$ff
+	sta $de10
+@waitbyte:	
+	lda $de12		;we check the busy bit
+	and #$01		;to ensure that the transfer is safe
+	bne @waitbyte
+	lda $de10
+	rts
 
 @resetcmd:	
-	.byte $ff,$f9,$00,$00,$00,$00,$40,$ff	;CMD0
+	.byte $95,$00,$00,$00,$00,$40	;CMD0
 
 @sendifcondcmd:
-	.byte $ff,$87,$aa,$01,$00,$00,$48,$ff	;CMD8
+	.byte $87,$aa,$01,$00,$00,$48	;CMD8
 
 
 selectmmc64:
+	lda #$ff
+	sta $de10
+@waitselect:
+	lda $de12
+	and #$01
+	bne @waitselect
 	lda $de11
 	and #%11111101  ;enable card select
 	sta $de11
@@ -261,7 +291,6 @@ blockreadcmd:
 	;; Y - preserved
 mmc64cmdparamblk:
 	ldx #$ff
-	stx $de10
 	sta $de10
 	lda sdtype
 	cmp #3
@@ -301,7 +330,6 @@ mmc64cmdparamblk:
 	;; Y - in: parameter byte, preserved
 mmc64cmdparam1:
 	ldx #$ff
-	stx $de10
 	sta $de10
 	sty $de10
 	inx
@@ -313,7 +341,6 @@ mmc64cmdparam1:
 	;; Y - preserved
 mmc64cmd:
 	ldx #$ff
-	stx $de10
 	sta $de10
 	inx
 	stx $de10
@@ -325,7 +352,6 @@ mmc64cmdcommon1:
 mmc64cmdcommon2:	
 	stx $de10 ; CRC7
 	stx $de10 ; dummy
-mmc64readr1:
 	stx $de10 ; R1?
 	lda $de10
 	bpl @gotr1
