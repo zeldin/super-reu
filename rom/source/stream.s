@@ -3,8 +3,10 @@
 	
 	.import initmmc64, selectmmc64, deselectmmc64
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
+	.import index_fill0, index_refill
 	.importzp mmcptr, blknum
-
+	.importzp index_avail
+	
 avail_margin = 64		; number of 256 byte pages to not overwrite
 	
 	.zeropage
@@ -31,6 +33,7 @@ initstream:
 	sta $de17
 	dex
 	stx max_avail_high
+	jsr index_fill0
 @initial_fill:
 	lda last_read_pos
 	jsr getstreamdata
@@ -114,8 +117,17 @@ noread:
 doread256:
 	lda #0
 doread:
+	ldx index_avail+1
+	bne @avail
+	cmp #0
+	beq @cap_to_lower
+	cmp index_avail
+	bcc @avail
+@cap_to_lower:
+	lda index_avail
+	beq @try_fill_index
+@avail:	
 	sta blockstoread
-
 	jsr blockreadmulticmd
 	lda blockstoread
 	sta $de14
@@ -135,4 +147,19 @@ doread:
 	bne @nowrap0
 	inc blknum+3
 @nowrap0:
+	lda index_avail
+	ldx blockstoread
+	beq @dec256b
+	sec
+	sbc blockstoread
+	sta index_avail
+	bcs @nowrap1
+@dec256b:
+	dec index_avail+1
+@nowrap1:
+	ora index_avail+1
+	bne @noread
+@try_fill_index:
+	jsr index_refill
+@noread:
 	jmp noread

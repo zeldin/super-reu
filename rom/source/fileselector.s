@@ -3,6 +3,8 @@
 
 	.export fileselector
 
+	.import index_file
+	
 	.import fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
 	.import fatfs_open_subdir, fatfs_rewind_dir
 	.import cluster_to_block, follow_fat
@@ -373,7 +375,8 @@ selection:
 	inx
 	cpx #24
 	bcc @cleanup_screen
-	jmp cluster_to_block
+	jsr cluster_to_block
+	jmp index_file
 
 
 colorize:

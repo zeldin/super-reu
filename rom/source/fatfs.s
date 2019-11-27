@@ -2,7 +2,7 @@
 	.export fatfs_mount, fatfs_open_rootdir, fatfs_next_dirent
 	.export fatfs_open_subdir, fatfs_rewind_dir
 	.export cluster_to_block, follow_fat
-	.export direntry, cluster
+	.export direntry, cluster, blocks_per_cluster
 	
 	.import blockread1, blockreadn, blockreadmulticmd, stopcmd
 	.importzp mmcptr, blknum
