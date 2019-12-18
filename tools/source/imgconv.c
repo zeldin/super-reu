@@ -28,6 +28,17 @@ static uint8_t palette[16][3] = {
     (RGB)[2] = palette[(N)][2];			\
 } while(0)
 
+static const int8_t dither_kernel[8][8] = {
+  {    -25,      0,    -18,      6,    -23,      1,    -17,      8 },
+  {     13,    -12,     19,     -5,     14,    -10,     21,     -4 },
+  {    -15,      9,    -21,      3,    -13,     11,    -20,      5 },
+  {     22,     -2,     16,     -9,     24,     -1,     17,     -7 },
+  {    -22,      2,    -16,      9,    -24,      1,    -17,      7 },
+  {     15,     -9,     21,     -3,     13,    -11,     20,     -5 },
+  {    -13,     12,    -19,      5,    -14,     10,    -21,      4 },
+  {     25,      0,     18,     -6,     23,     -1,     17,     -8 },
+};
+
 static void encode_indices(uint8_t *dst, const uint8_t *indices, int cnt, int w)
 {
   while(cnt > 0) {
@@ -244,18 +255,23 @@ static void low_convert(const uint8_t (*pixels)[200][320][3],
 			uint8_t (*bitmap)[25][40][8],
 			uint8_t (*screen)[25][40],
 			uint8_t (*color)[25][40],
-			int bg, uint16_t *histo)
+			int bg, uint16_t *histo, uint8_t dither)
 {
-  int r, c, rsub, csub;
+  int r, c, rsub, csub, comp;
   for (r=0; r<25; r++)
     for (c=0; c<40; c++) {
       uint8_t subpixels[64][3];
       for (rsub=0; rsub<8; rsub++)
-	for (csub=0; csub<8; csub++) {
-	  subpixels[(rsub<<3)|csub][0] = (*pixels)[(r<<3)|rsub][(c<<3)|csub][0];
-	  subpixels[(rsub<<3)|csub][1] = (*pixels)[(r<<3)|rsub][(c<<3)|csub][1];
-	  subpixels[(rsub<<3)|csub][2] = (*pixels)[(r<<3)|rsub][(c<<3)|csub][2];
-	}
+	for (csub=0; csub<8; csub++)
+	  for (comp=0; comp<3; comp++)
+	    if (dither) {
+	      int16_t v = (*pixels)[(r<<3)|rsub][(c<<3)|csub][comp];
+	      v += dither_kernel[(((r<<3)|rsub)/dither)&7][(((c<<3)|csub)/dither)&7];
+	      subpixels[(rsub<<3)|csub][comp] =
+		(v < 0? 0 : (v > 255? 255 : v));
+	    } else
+	      subpixels[(rsub<<3)|csub][comp] =
+		(*pixels)[(r<<3)|rsub][(c<<3)|csub][comp];
       convert_sub(&subpixels, &(*bitmap)[r][c], &(*screen)[r][c],
 		  (color == NULL? NULL : &(*color)[r][c]), bg, histo);
     }
@@ -265,20 +281,20 @@ void img_convert(const uint8_t (*pixels)[200][320][3],
 		 uint8_t (*bitmap)[25][40][8],
 		 uint8_t (*screen)[25][40],
 		 uint8_t (*color)[25][40],
-		 uint8_t *bg)
+		 uint8_t *bg, uint8_t dither)
 {
   int r, c, i;
   uint16_t histo[16];
   for (i=0; i<16; i++)
     histo[i] = 0;
-  low_convert(pixels, bitmap, screen, color, -1, histo);
+  low_convert(pixels, bitmap, screen, color, -1, histo, dither);
   if (color != NULL && bg != NULL) {
     int n=0;
     for (i=1; i<16; i++)
       if (histo[i] > histo[n])
 	n = i;
     *bg = n;
-    low_convert(pixels, bitmap, screen, color, n, NULL);
+    low_convert(pixels, bitmap, screen, color, n, NULL, dither);
   }
 }
 

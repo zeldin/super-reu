@@ -33,12 +33,12 @@ struct frame {
 #endif
 };
 
-static void convert_frame(struct frame *f, int mc, int player)
+static void convert_frame(struct frame *f, int mc, int dither, int player)
 {
   f->mc = mc;
 
   img_convert(&f->pixels, &f->bitmap, &f->screen,
-	      (mc? &f->color : NULL), (mc? &f->bg : NULL));
+	      (mc? &f->color : NULL), (mc? &f->bg : NULL), dither);
 
   if (player) {
     img_convert_rev(&f->pixels, &f->bitmap, &f->screen,
@@ -59,6 +59,7 @@ static struct thread_context {
   FILE *vframes;
   int mc;
   int ntsc;
+  int dither;
   int player;
   int eof;
   struct frame *free_queue;
@@ -124,7 +125,7 @@ static void *worker_thread(void *arg)
       break;
 
     (void) pthread_mutex_unlock(&context.mutex);
-    convert_frame(f, context.mc, context.player);
+    convert_frame(f, context.mc, context.dither, context.player);
     (void) pthread_mutex_lock(&context.mutex);
 
     f->ready = 1;
@@ -133,7 +134,7 @@ static void *worker_thread(void *arg)
   (void) pthread_mutex_unlock(&context.mutex);
 }
 
-static void prepare_convert(FILE *vframes, int mc, int ntsc, int player, int workers)
+static void prepare_convert(FILE *vframes, int mc, int ntsc, int dither, int player, int workers)
 {
   struct frame *f;
   int i;
@@ -142,6 +143,7 @@ static void prepare_convert(FILE *vframes, int mc, int ntsc, int player, int wor
   context.vframes = vframes;
   context.mc = mc;
   context.ntsc = ntsc;
+  context.dither = dither;
   context.player = player;
   context.eof = 0;
   context.free_queue = NULL;
@@ -219,18 +221,18 @@ static void cleanup_convert(void)
 #else
 
 static struct frame *read_and_convert_frame(struct frame *f, FILE *vframes,
-					    int mc, int ntsc, int player)
+					    int mc, int ntsc, int dither, int player)
 {
   if (read_frame(f, vframes) != 1)
     return NULL;
-  convert_frame(f, mc, player);
+  convert_frame(f, mc, dither, player);
   return f;
 }
 
 #endif
 
 static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
-		    double fps, double srate
+		    int dither, double fps, double srate
 #if USE_THREADS
 		    , int parallel
 #endif
@@ -250,7 +252,7 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
   uint8_t hdr_and_sound[1024];
 
 #if USE_THREADS
-  prepare_convert(vframes, mc, ntsc, !!player, parallel);
+  prepare_convert(vframes, mc, ntsc, dither, !!player, parallel);
 #else
   struct frame frame;
   memset(&frame, 0, sizeof(frame));
@@ -269,7 +271,7 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 #if USE_THREADS
       f = get_converted_frame();
 #else
-      f = read_and_convert_frame(&frame, vframes, mc, ntsc, !!player);
+      f = read_and_convert_frame(&frame, vframes, mc, ntsc, dither, !!player);
 #endif
     }
 
@@ -355,6 +357,7 @@ static void usage(const char *pname)
 	  "  -f fps      Set video fps\n"
 	  "  -r rate     Set audio sample rate\n"
 	  "  -m          Enable multicolor\n"
+	  "  -d size     Dither with size pixel large dots\n"
 	  "  -p          Display preview while encoding\n"
 #if USE_THREADS
 	  "  -j number   Set number of video encoder threads\n"
@@ -442,7 +445,7 @@ static void cmdline_append_quoted(const char *str)
 
 int main(int argc, char *argv[])
 {
-  int opt, mc = 0, preview = 0;
+  int opt, mc = 0, dither = 0, preview = 0;
   double fps = 50;
   double srate = 16000;
   char *endp, *cmdline;
@@ -455,7 +458,7 @@ int main(int argc, char *argv[])
   FILE *player = NULL;
 
   while ((opt = getopt(argc, argv,
-		       "f:r:mp"
+		       "f:r:md:p"
 #if USE_THREADS
 		       "j:"
 #endif
@@ -477,6 +480,13 @@ int main(int argc, char *argv[])
       break;
     case 'm':
       mc = 1;
+      break;
+    case 'd':
+      dither = strtol(optarg, &endp, 10);
+      if (!*optarg || *endp) {
+	fprintf(stderr, "Invalid number: %s\n", optarg);
+	return 1;
+      }
       break;
     case 'p':
       preview = 1;
@@ -553,7 +563,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  convert(vframes, aframes, player, mc, fps, srate
+  convert(vframes, aframes, player, mc, dither, fps, srate
 #if USE_THREADS
 	  , parallel
 #endif
