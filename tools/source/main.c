@@ -232,13 +232,12 @@ static struct frame *read_and_convert_frame(struct frame *f, FILE *vframes,
 #endif
 
 static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
-		    int dither, double fps, double srate
+		    int dither, double fps, double srate, int ntsc
 #if USE_THREADS
 		    , int parallel
 #endif
 		    )
 {
-  uint8_t ntsc = 0;
   struct frame *f = NULL;
   uint8_t f_mc = 0;
   uint8_t f_bg = 0;
@@ -353,10 +352,15 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 
 static void usage(const char *pname)
 {
-  fprintf(stderr, "Usage: %s [-f fps] [-m] [-p]\n"
+  fprintf(stderr, "Usage: %s [-f fps] [-r rate] [-m] [-n] [-d size] [-p]"
+#if USE_THREADS
+	  " [-j number]"
+#endif
+	  "\n"
 	  "  -f fps      Set video fps\n"
 	  "  -r rate     Set audio sample rate\n"
 	  "  -m          Enable multicolor\n"
+	  "  -n          Target NTSC (60 Hz) C64:s\n"
 	  "  -d size     Dither with size pixel large dots\n"
 	  "  -p          Display preview while encoding\n"
 #if USE_THREADS
@@ -445,7 +449,7 @@ static void cmdline_append_quoted(const char *str)
 
 int main(int argc, char *argv[])
 {
-  int opt, mc = 0, dither = 0, preview = 0;
+  int opt, mc = 0, ntsc = 0, dither = 0, preview = 0;
   double fps = 50;
   double srate = 16000;
   char *endp, *cmdline;
@@ -458,7 +462,7 @@ int main(int argc, char *argv[])
   FILE *player = NULL;
 
   while ((opt = getopt(argc, argv,
-		       "f:r:md:p"
+		       "f:r:mnd:p"
 #if USE_THREADS
 		       "j:"
 #endif
@@ -480,6 +484,9 @@ int main(int argc, char *argv[])
       break;
     case 'm':
       mc = 1;
+      break;
+    case 'n':
+      ntsc = 1;
       break;
     case 'd':
       dither = strtol(optarg, &endp, 10);
@@ -563,7 +570,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  convert(vframes, aframes, player, mc, dither, fps, srate
+  convert(vframes, aframes, player, mc, dither, fps, srate, ntsc
 #if USE_THREADS
 	  , parallel
 #endif

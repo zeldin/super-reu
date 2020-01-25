@@ -7,7 +7,7 @@ NAME
 SYNOPSIS
 ========
 
-`mc64conv` [`-f` _fps_] [`-r` _rate_] [`-m`] [`-d` _size_] [`-p`] [`-j` _number_] _videofile_ [_audiofile_] `>` _destination_
+`mc64conv` [`-f` _fps_] [`-r` _rate_] [`-m`] [`-n`] [`-d` _size_] [`-p`] [`-j` _number_] _videofile_ [_audiofile_] `>` _destination_
 
 
 DESCRIPTION
@@ -29,7 +29,7 @@ Options
    Number of frames per second in the input movie
 
    The converter will skip or duplicate frames as needed to reach the
-   target rate of 50 frames per second.
+   target rate of 50 (60) frames per second.
 
 `-r` _rate_
 
@@ -44,6 +44,12 @@ Options
 `-m`
 
    Enable multicolor mode
+
+`-n`
+
+   Target NTSC (60 Hz) C64:s
+
+   This will make the target rate 60 frames per second.
 
 `-d` _size_
 
