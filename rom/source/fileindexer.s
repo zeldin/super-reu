@@ -9,9 +9,16 @@
 	.import screen, clear_screen, setrow, nextrow, printtext
 
 	.import index_fill0, index_refill	
-	.import printhex
 	.importzp blknum, index_avail
-		
+
+	.bss
+
+block_progress_low:	.res 1
+block_progress_high:	.res 1
+progress_target_low:	.res 1
+progress_target_high:	.res 1
+blocks_remain:		.res 3
+
 	.code
 
 index_overflow:
@@ -23,64 +30,123 @@ index_overflow:
 	beq @hang
 	
 index_file:
+	sta blocks_remain
+	stx blocks_remain+1
+	sty blocks_remain+2
+	ora blocks_remain+1
+	ora blocks_remain+2
+	bne @nonempty
+	jmp @eof
+@nonempty:
+	inx
+	bne @nowrap
+	iny
+@nowrap:
+	stx progress_target_low
+	sty progress_target_high
 	jsr index_clear
 	jsr clear_screen
 	lda #0
+	sta block_progress_low
+	sta block_progress_high
 	jsr setrow
 	jsr printtext
 	scrcode "Indexing file...@"
+	lda #$73
+	sta screen+83
+	lda #$6b
+	sta screen+116
+	ldx #31
+	lda #$e
+@setcolor1:
+	sta $d800+84,x
+	dex
+	bpl @setcolor1
 	lda #0
 @next_cluster:
 	tay
+	sec
+	lda block_progress_low
+	sbc progress_target_low
+	tax
+	lda block_progress_high
+	sbc progress_target_high
+	bcc @noprogress
+	sta block_progress_high
+	stx block_progress_low
+	tya
 	and #7
 	tax
-	lda progress,x
-	sta screen+16
-	dey
-	lda blocks_per_cluster
+	lda progressbar,x
+	pha
+	tya
+	lsr
+	lsr
+	lsr
+	tax
+	pla
+	sta screen+84,x
+	lda #0
+	sta block_progress_low
+	sta block_progress_high
+	iny
+@noprogress:
+	ldx blocks_per_cluster
+	lda blocks_remain+2
+	bne @whole_cluster
+	lda blocks_remain+1
+	bne @whole_cluster
+	cpx blocks_remain
+	bcc @whole_cluster
+	ldx blocks_remain
+	lda #0
+	sta blocks_remain
+	beq @residue
+@whole_cluster:
+	sec
+	lda blocks_remain
+	sbc blocks_per_cluster
+	sta blocks_remain
+	lda blocks_remain+1
+	sbc #0
+	sta blocks_remain+1
+	lda blocks_remain+2
+	sbc #0
+	sta blocks_remain+2
+@residue:
+	txa
+	clc
+	adc block_progress_low
+	sta block_progress_low
+	bne @noprogress2
+	inc block_progress_high
+@noprogress2:
+	txa
 	jsr index_add
-	bcs index_overflow
+	bcc @index_ok
+	jmp index_overflow
+@index_ok:
+	lda blocks_remain+2
+	ora blocks_remain+1
+	ora blocks_remain
+	beq @eof
 	tya
 	pha
 	jsr follow_fat
 	pla
-	bcc @next_cluster
-	
-	lda #2
-	jsr setrow
+	bcs @eof
+	jmp @next_cluster
+@eof:
 	jsr index_fill0
-	beq nope
-@nextindex:
-	lda blknum+3
-	jsr printhex
-	lda blknum+2
-	jsr printhex
-	lda blknum+1
-	jsr printhex
-	lda blknum
-	jsr printhex
-	iny
-	lda index_avail+1
-	jsr printhex
-	lda index_avail
-	jsr printhex
-	jsr nextrow
-	jsr index_refill
-	bne @nextindex
-nope:
-	jsr nextrow
-	jsr printtext
-	scrcode "End of index@"
-
-@wait_here:	
-	inc $d020
-	lda $dc01
-	and #$10
-	bne @wait_here
-	lda #0
-	sta $d020
+	jsr clear_screen
+	ldx #31
+	lda $d800
+@setcolor2:
+	sta $d800+84,x
+	dex
+	bpl @setcolor2
 	rts
 
 
-progress:
-	.byte $6c, $7c, $7e, $7b, $70, $6d, $7d, $6e
+progressbar:
+	.byte $65, $74, $75, $61, $f6, $ea, $e7, $e0

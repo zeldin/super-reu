@@ -27,7 +27,10 @@ cluster0:	.res	files_per_page
 cluster1:	.res	files_per_page
 cluster2:	.res	files_per_page
 cluster3:	.res	files_per_page
-
+blocks_high:	.res	files_per_page
+blocks_mid:	.res	files_per_page
+blocks_low:	.res	files_per_page
+	
 filename:	.res	27
 
 entry_num:	.res	1
@@ -173,7 +176,9 @@ next_page:
 	bne @skip_entry
 	lda entry_num
 	cmp #files_per_page
-	bcs @moredir
+	bcc @space_available
+	jmp @moredir
+@space_available:
 	jsr clearline
 	ldx #0
 @displayname:
@@ -209,6 +214,25 @@ next_page:
 	sta cluster2,x
 	lda direntry+21
 	sta cluster3,x
+	lda direntry+31
+	lsr
+	sta blocks_high,x
+	lda direntry+30
+	ror
+	sta blocks_mid,x
+	lda direntry+29
+	ror
+	sta blocks_low,x
+	bcs @residue
+	lda direntry+28
+	beq @noresidue
+@residue:
+	inc blocks_low,x
+	bne @noresidue
+	inc blocks_mid,x
+	bne @noresidue
+	inc blocks_high,x
+@noresidue:
 	lda direntry+11
 	sta file_flags,x
 	jsr colorize
@@ -366,6 +390,12 @@ selection:
 	jsr fatfs_open_subdir
 	jmp next_dir
 @regular_file:
+	lda blocks_low,x
+	pha
+	lda blocks_mid,x
+	pha
+	lda blocks_high,x
+	pha
 	lda #0
 	jsr setrow
 	ldx #0
@@ -376,6 +406,11 @@ selection:
 	cpx #24
 	bcc @cleanup_screen
 	jsr cluster_to_block
+	pla
+	tay
+	pla
+	tax
+	pla
 	jmp index_file
 
 
