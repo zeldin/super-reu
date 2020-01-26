@@ -25,7 +25,9 @@ dir_cluster:		.res 4
 dir_cnt:		.res 2
 dir_entry_num:		.res 1
 dir_type:		.res 1
-		
+cached_blknum:		.res 4
+
+
 	.code
 
 follow_fat:
@@ -609,8 +611,46 @@ try_mount:
 	rts
 
 read_block_internal:
+	lda blknum
+	cmp cached_blknum
+	bne @diff_cached_0
+	ora blknum+1
+	ora blknum+2
+	ora blknum+3
+	beq @diff_cached_0	; never read block 0 from cache
+	lda blknum+1
+	cmp cached_blknum+1
+	bne @diff_cached_1
+	lda blknum+2
+	cmp cached_blknum+2
+	bne @diff_cached_2
+	lda blknum+3
+	cmp cached_blknum+3
+	bne @diff_cached_3
+	clc
+	rts
+
+@diff_cached_0:
+	sta cached_blknum
+	lda blknum+1
+@diff_cached_1:
+	sta cached_blknum+1
+	lda blknum+2
+@diff_cached_2:
+	sta cached_blknum+2
+	lda blknum+3
+@diff_cached_3:
+	sta cached_blknum+3
 	lda #<fatfs_block
 	sta mmcptr
 	lda #>fatfs_block
 	sta mmcptr+1
-	jmp blockread1
+	jsr blockread1
+	bcc @cache_ok
+	lda #0			; set block number to 0 to prevent
+	sta cached_blknum	; cache from being used
+	sta cached_blknum+1
+	sta cached_blknum+2
+	sta cached_blknum+3
+@cache_ok:
+	rts
