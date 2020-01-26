@@ -4,6 +4,8 @@
 	.import init_screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vreg
 
+	.import deselectmmc64, selectmmc64, stopcmd
+
 	.import fileselector, movie_player
 
 
@@ -36,6 +38,9 @@ start:
 	dex
 	lda #$7f
 	sta $dc00
+	lda #0
+	sta $dc13
+	jsr deselectmmc64
 
 	jsr init_screen
 
@@ -48,7 +53,19 @@ start:
 	sta $314
 	lda #>irq_handler
 	sta $315
+	lda #<start
+	sta $318
+	lda #>start
+	sta $319
 	cli
+
+	lda #%00000100
+	bit $de11
+	beq @no8mhz
+	jsr selectmmc64
+	jsr stopcmd
+	jsr deselectmmc64
+@no8mhz:
 
 	jsr clear_screen
 	lda #0
