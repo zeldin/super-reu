@@ -128,7 +128,8 @@ module chameleon2 (
    wire reset;
 
    // LED signals
-   reg 	green_led = 1'b0;
+   wire green_led;
+   wire red_led;
 
 
 // Clocks
@@ -166,8 +167,6 @@ module chameleon2 (
 
 
 // LED, PS2 and reset shiftregister
-
-   wire red_led;
 
    chameleon2_io_shiftreg shiftreg_inst(.clk(sysclk), .ser_out_clk(ser_out_clk),
 					.ser_out_dat(ser_out_dat), .ser_out_rclk(ser_out_rclk),
@@ -375,6 +374,7 @@ module chameleon2 (
    reg 	       rom_load_started = 1'b0;
    reg 	       rom_load_done = 1'b0;
 
+   assign      green_led = ~spi_clk & ~mmc_cs;
    assign      red_led = ~rom_load_done;
 
 
@@ -392,22 +392,5 @@ module chameleon2 (
 		  .read_strobe(cart_read_strobe),
 		  .write_strobe(cart_write_strobe));
 
-
-
-// LED blinking
-
-   reg [8:0] cnt = 9'd0;
-
-   always @(posedge sysclk) begin
-      if (ena_1khz) begin
-	 if (cnt == 500) begin
-	    green_led <= ~green_led;
-	    cnt <= 0;
-	 end else begin
-	    cnt <= cnt+1;
-	 end
-      end
-   end
-					
 
 endmodule // chameleon2
