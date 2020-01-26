@@ -1,7 +1,7 @@
 
 	.macpack cbm
 
-	.import screen, init_screen, clear_screen, setrow, nextrow, dumpreg
+	.import init_screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vreg
 
 	.import fileselector, movie_player
@@ -16,6 +16,11 @@
 
 start:
 	sei
+	cld
+	lda #$37
+	sta $01
+	lda #$2f
+	sta $00
 @wait1:	
 	lda $d011
 	bpl @wait1
@@ -46,163 +51,40 @@ start:
 	cli
 
 	jsr clear_screen
-
-	ldx #message_length-1
-print_message:	
-	lda message,x
-	sta screen,x
-	dex
-	bpl print_message
-
+	lda #0
+	jsr setrow
+	jsr printtext
+	scrcode "super-reu version @"
+	lda $df00
+	and #$0f
+	jsr printhex
+	lda #3
+	jsr setrow
+	jsr printtext
+	scrcode "Press 1 for movie player@"
+	jsr nextrow
+	jsr printtext
+	scrcode "Press Q to quit into BASIC@"
+	jsr nextrow
+	jsr printtext
+	scrcode "RESTORE returns to this screen@"
+	
 	lda #$1b
 	sta $d011
 
 
-	;; Do some register I/O
-
-
-	lda #$91
-	sta $dea2
-
-	lda #$ff
-	ldx #16
-@init_row:
-	sta screen+40,x
-	dex
-	bpl @init_row
-
-	lda #<(screen+7)
-	sta $df02
-	lda #>(screen+8)
-	sta $df03
-
-	lda #$40
-	sta $df09
-	
-	lda #0
-	sta $df04
-	sta $df05
-	sta $df06
-
-	lda #7
-	sta $df07
-	lda #0
-	sta $df08
-
-	lda #$b0
-	sta $df01
-
-	jsr waitdma
-
-	lda #<(screen+42)
-	sta $df02
-	lda #>(screen+42)
-	sta $df03
-	lda #$91
-	sta $df01
-
-	jsr waitdma
-
-	lda #0
-	sta $df04
-	sta $df05
-	sta $df06
-	lda #<$8004
-	sta $df02
-	lda #>$8004
-	sta $df03
-	lda #5
-	sta $df07
-	lda #0
-	sta $df08
-	lda #$90
-	sta $df01
-
-	jsr waitdma
-
-	lda #<$de00
-	sta $df02
-	lda #>$de00
-	sta $df03
-	lda #2
-	sta $df07
-	lda #0
-	sta $df08
-	lda #$90
-	sta $df01
-
-	jsr waitdma
-
-	lda #0
-	sta $df04
-	sta $df05
-	sta $df06
-	lda #<(screen+60)
-	sta $df02
-	lda #>(screen+60)
-	sta $df03
-	lda #7
-	sta $df07
-	lda #0
-	sta $df08
-	lda #$b1
-	sta $df01
-
-	jsr waitdma
-
-	lda #<$de02
-	sta $df02
-	lda #>$de02
-	sta $df03
-	lda #1
-	sta $df07
-	lda #0
-	sta $df08
-	lda #$91
-	sta $df01
-
-	jsr waitdma
-
-
-	lda #3
-	jsr setrow
-
-	ldx #0
-@dumpde00loop:
-	jsr dumpdereg
-	inx
-	cpx #8
-	bcc @dumpde00loop
-
-	lda #16
-	jsr setrow
-
-	ldx #$10
-@dumpde10loop:
-	jsr dumpdereg
-	inx
-	cpx #$14
-	bcc @dumpde10loop
-	
-	lda #3
-	jsr setrow
-
-	ldx #0
-@dumpdfloop:
-	ldy #20
-	jsr dumpdfreg
-	inx
-	cpx #16
-	bcc @dumpdfloop
-
-
-	;; Holding pattern
-
 @wait_here:	
-	inc $d020
 	lda $dc01
-	and #$10
-	bne @wait_here
+	lsr
+	bcc @next_movie
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
+	bcc exit_to_basic
+	jmp @wait_here
 
 @next_movie:
 	lda #0
@@ -216,41 +98,41 @@ print_message:
 	jmp @next_movie
 
 
-waitdma:
-	inc $d024
-	lda $df00
-	bpl waitdma
-	rts
-
-
-
-	;; Dump one register on page $DE00 and advance to the next row
-	;; A - scratch
-	;; X - in: low byte of register address (preserved)
-	;; Y - in: column to print at, out: set to 0
-dumpdereg:
-	lda #>$de00
-	jsr dumpreg
-	ldx vreg
-	jmp nextrow
-
-	;; Dump one register on page $DF00 and advance to the next row
-	;; A - scratch
-	;; X - in: low byte of register address (preserved)
-	;; Y - in: column to print at, out: set to 0
-dumpdfreg:
-	lda #>$df00
-	jsr dumpreg
-	ldx vreg
-	jmp nextrow
-
-
-message:
-	scrcode "Hello, this is EXROM code."
-message_length = * - message
-
-
 irq_handler:
-	inc $d021
+	inc $d020
 	jmp irq_handler
 
+
+exit_to_basic:
+	sei
+	ldx #$ff
+	txs
+	cld
+	lda #$37
+	sta $01
+	lda #$2f
+	sta $00
+	lda #$0b
+	sta $d011
+	jsr $ff84
+	jsr $ff87
+	jsr $ff8a
+	jsr $ff81
+	ldx #@stub_size-1
+@copy_stub:
+	lda @stub,x
+	sta $1f0,x
+	dex
+	bpl @copy_stub
+	lda #0
+	ldx #$37
+	jmp $1f0
+
+@stub:
+	stx $01
+	tax
+	tay
+	cli
+	jmp ($a000)
+
+@stub_size = *-@stub

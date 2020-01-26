@@ -29,10 +29,14 @@ movie_player:
 	sta $df04
 	sta $df05
 	sta $df06
+	sta $df0a
+	sta $df0b
 	sta $df19
 	sta $df1d
 	sta $df29
 	sta $df2d
+	lda #$40
+	sta $df09
 	lda #<$d418
 	sta $df12
 	sta $df22
