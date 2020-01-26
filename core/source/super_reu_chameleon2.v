@@ -316,6 +316,8 @@ module chameleon2 (
    wire        io_write_strobe_mmc64;
    wire        io_write_strobe_dma;
 
+   wire        disable_exrom;
+   
    address_decoder #(.a_bits(9), .devices(3),
 		     .base_addresses({16'hde00, 16'hde10, 16'hdf00}),
 		     .aperture_widths({4'd4, 4'd4, 4'd8}))
@@ -338,6 +340,7 @@ module chameleon2 (
 		    .spi_speed(spi_speed), .spi_ack(spi_ack), .wp(mmc_wp),
 		    .cd(mmc_cd), .spi_cs(mmc_cs),
 		    .exrom(~exrom_out), .game(~game_out),
+	            .disable_exrom(disable_exrom),
 		    .ram_a(sdram_a2), .ram_d(sdram_d2), .ram_q(sdram_q2[7:0]),
 		    .ram_we(sdram_we2), .ram_req(sdram_req2), .ram_ack(sdram_ack2));
 
@@ -357,7 +360,7 @@ module chameleon2 (
 
 // EXROM
 
-   assign exrom_out = 1'b1;
+   assign exrom_out = ~disable_exrom;
 
    wire [7:0] cart_read_data;
    wire	      cart_read_strobe;

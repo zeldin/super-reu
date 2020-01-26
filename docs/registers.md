@@ -155,7 +155,7 @@ the base address is moved to $DE10 to make room for the extra DMA channels.
 |        |      | 7 - MMC64 active       | 1 = Register $DE10 is disabled
 |        |      | 6 - SPI trigger mode   | 0 = SPI transfer on write to $DE10
 |        |      |                        | 1 = SPI transfer on read from $DE10
-|        |      | 5 - External ROM       | Not implemented, must be set to 0
+|        |      | 5 - External ROM       | 1 = Disable external ROM
 |        |      | 4 - Flash mode         | Not implemented, must be set to 0
 |        |      | 3 - Clock port address | Not implemented, must be set to 0
 |        |      | 2 - Clock speed        | 0 = 250 kHz SPI clock

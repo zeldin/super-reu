@@ -40,7 +40,10 @@ start:
 	sta $dc00
 	lda #0
 	sta $dc13
-	jsr deselectmmc64
+	lda $de11
+	and #%00000100
+	ora #%00000011
+	sta $de11
 
 	jsr init_screen
 
@@ -143,9 +146,11 @@ exit_to_basic:
 	bpl @copy_stub
 	lda #0
 	ldx #$37
+	ldy #%10100011
 	jmp $1f0
 
 @stub:
+	sty $de11
 	stx $01
 	tax
 	tay

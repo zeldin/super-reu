@@ -16,6 +16,7 @@ module mmc64(
 	     output spi_cs,
 	     input exrom,
 	     input game,
+	     output disable_exrom,
 	     output[(ram_a_bits-1):0] ram_a,
 	     output[7:0] ram_d,
 	     input[7:0] ram_q,
@@ -34,8 +35,11 @@ module mmc64(
    reg [7:0] spi_q_reg;
    reg 	     active;
    reg 	     trigger_mode;
+   reg       exrom_reg = 1'b0;
    reg 	     speed = 1'b0;
    reg 	     cs = 1'b1;
+
+   assign    disable_exrom = exrom_reg;
 
    reg 	     spi_req_reg = 1'b0;
    reg 	     spi_ack_reg = 1'b0;
@@ -66,6 +70,7 @@ module mmc64(
 	 spi_q_reg <= 8'hff;
 	 active <= 1'b0;
 	 trigger_mode <= 1'b0;
+	 exrom_reg <= 1'b0;
 	 speed <= 1'b0;
 	 cs <= 1'b1;
 
@@ -93,7 +98,7 @@ module mmc64(
 		 if (active == 1'b0 && trigger_mode == 1'b1)
 		   spi_req_reg <= ~spi_ack;
 	      end
-	      4'h1: d_q_reg <= { active, trigger_mode, 3'b000, speed, cs, 1'b1 };
+	      4'h1: d_q_reg <= { active, trigger_mode, exrom_reg, 2'b00, speed, cs, 1'b1 };
 	      4'h2: d_q_reg <= { 3'b000, wp, cd, exrom, game, spi_req_reg^spi_ack };
 	      4'h3: d_q_reg <= { 6'b00000, blockfail, readblocks };
 	      4'h4: d_q_reg <= blockcnt;
@@ -113,6 +118,7 @@ module mmc64(
 	      4'h1: begin
 		 active <= d_d[7];
 		 trigger_mode <= d_d[6];
+		 exrom_reg <= d_d[5];
 		 speed <= d_d[2];
 		 cs <= d_d[1];
 	      end
