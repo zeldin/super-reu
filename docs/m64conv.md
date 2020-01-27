@@ -7,7 +7,7 @@ NAME
 SYNOPSIS
 ========
 
-`mc64conv` [`-f` _fps_] [`-r` _rate_] [`-m`] [`-n`] [`-d` _size_] [`-p`] [`-j` _number_] _videofile_ [_audiofile_] `>` _destination_
+`mc64conv` [`-f` _fps_] [`-r` _rate_] [`-v` _volume_] [`-m`] [`-n`] [`-d` _size_] [`-p`] [`-j` _number_] _videofile_ [_audiofile_] `>` _destination_
 
 
 DESCRIPTION
@@ -40,6 +40,13 @@ Options
    work well due to badlines.  Rates of 12000 Hz and below result in
    all audio data fitting within the header block (file size is unaffected
    by audio).  The default target audio sample rate is 16000 Hz.
+
+`-v` _volume_
+
+   Volume gain
+
+   If specified, the input volume will be multiplied by this number.
+   Output values are clipped to the maximum value.
 
 `-m`
 

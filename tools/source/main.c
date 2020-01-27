@@ -352,13 +352,14 @@ static void convert(FILE *vframes, FILE *aframes, FILE *player, int mc,
 
 static void usage(const char *pname)
 {
-  fprintf(stderr, "Usage: %s [-f fps] [-r rate] [-m] [-n] [-d size] [-p]"
+  fprintf(stderr, "Usage: %s [-f fps] [-r rate] [-v volume] [-m] [-n] [-d size] [-p]"
 #if USE_THREADS
 	  " [-j number]"
 #endif
 	  "\n"
 	  "  -f fps      Set video fps\n"
 	  "  -r rate     Set audio sample rate\n"
+	  "  -v volume   Multiply audio volume\n"
 	  "  -m          Enable multicolor\n"
 	  "  -n          Target NTSC (60 Hz) C64:s\n"
 	  "  -d size     Dither with size pixel large dots\n"
@@ -452,6 +453,7 @@ int main(int argc, char *argv[])
   int opt, mc = 0, ntsc = 0, dither = 0, preview = 0;
   double fps = 50;
   double srate = 16000;
+  double volume = 1.0;
   char *endp, *cmdline;
 #if USE_THREADS
   int parallel = 1;
@@ -462,7 +464,7 @@ int main(int argc, char *argv[])
   FILE *player = NULL;
 
   while ((opt = getopt(argc, argv,
-		       "f:r:mnd:p"
+		       "f:r:v:mnd:p"
 #if USE_THREADS
 		       "j:"
 #endif
@@ -477,6 +479,13 @@ int main(int argc, char *argv[])
       break;
     case 'r':
       srate = strtod(optarg, &endp);
+      if (!*optarg || *endp) {
+	fprintf(stderr, "Invalid number: %s\n", optarg);
+	return 1;
+      }
+      break;
+    case 'v':
+      volume = strtod(optarg, &endp);
       if (!*optarg || *endp) {
 	fprintf(stderr, "Invalid number: %s\n", optarg);
 	return 1;
@@ -541,7 +550,7 @@ int main(int argc, char *argv[])
   cmdline_append("ffmpeg -nostats -hide_banner");
   cmdline_append("-i");
   cmdline_append_quoted(argv[optind+1 >= argc? optind : optind+1]);
-  cmdline_append("-f u8 -af volume=10dB,aformat=sample_fmts=u8:sample_rates=%.8g:channel_layouts=mono -", srate);
+  cmdline_append("-f u8 -af volume=%.8g,aformat=sample_fmts=u8:sample_rates=%.8g:channel_layouts=mono -", volume, srate);
   cmdline = cmdline_finish();
 
   aframes = popen(cmdline, "r");
