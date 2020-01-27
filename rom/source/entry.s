@@ -39,7 +39,11 @@ start:
 	lda #$7f
 	sta $dc00
 	lda #0
-	sta $dc13
+	sta $d418
+	sta $d404
+	sta $d40b
+	sta $d412
+	sta $de13
 	lda $de11
 	and #%00000100
 	ora #%00000011
