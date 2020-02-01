@@ -137,6 +137,40 @@ with a length large enough that each transfer is able to complete
 within the allotted time.
 
 
+#### Paced DMA considerations
+
+When all active DMA channels use the pacing control function, it means
+that the DMA engine will relinquish control of the bus (deassert the
+DMA signal) and reclaim it asynchronously at a later time.  Due to a
+design bug in the C64 expansion port (see
+[the paper by Gideon Zweijtzer](https://codebase64.org/lib/exe/fetch.php?media=base:safely_freezing_the_c64.pdf)
+for details), this can not be done safely at any time.  In order to
+guarantee correct operation of the 6510 CPU, a suspended DMA operation
+will be resumed at one of the following points:
+
+* When VIC has asserted and released BA, which is to say after it has
+  read character pointers (a "bad line") or sprite data.  Since VIC has
+  the means to halt the 6510 safely, it is always possible to extend
+  the halt state for DMA purposes at the end of VIC:s access.  Since
+  VIC can not be halted, it is not possible to perform any DMA
+  operation _during_ a bad line however.
+
+* After 6510 finishes an instruction performing a write to memory.
+  The switch from write cycles to read cycles (when fetching the next
+  instruction) serves as a trigger to indicate a point where DMA can
+  safely be restarted.
+
+Thus, if you are not content with paced DMA resuming at the next bad line
+(or sprite line), you should make sure to include some regular write
+operations in your 6510 code.  This means any instruction of: `BRK`,
+`DEC`, `INC`, `JSR`, `PHA`, `PHP`, `STA`, `STX`, `STY`, or one of
+`ASL`, `LSR`, `ROL` or `ROR` with a memory operand.
+
+When non-paced DMA is active in another channel, the 6510 is
+constantly halted and paced DMA will be able to resume immediately
+(except when locked out from the bus by VIC).
+
+
 SDcard access (MMC64)
 ---------------------
 
