@@ -8,6 +8,10 @@ The registers for the DMA channels appear at base address `DF00` in the
 C64 memory space.  Each channel occupies a 16 byte address space, with
 channel 0 at `DF00` to `DF0F`, channel 1 at `DF10` to `DF1F`, and so on.
 
+Note like that with the original Commodore REC, DMA transfers can
+not be performed on a C128 while in 2 MHz "FAST" mode, or when the Z80
+is running.
+
 ### 1700/1750 REC compatible registers
 
 |Address | Bits | Function                                  | |
