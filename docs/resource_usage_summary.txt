@@ -1,0 +1,51 @@
++--------------------------------------------------------------------------+
+; Fitter Resource Usage Summary                                            ;
++---------------------------------------------+----------------------------+
+; Resource                                    ; Usage                      ;
++---------------------------------------------+----------------------------+
+; Total logic elements                        ; 2,938 / 24,624 ( 12 % )    ;
+;     -- Combinational with no register       ; 1472                       ;
+;     -- Register only                        ; 206                        ;
+;     -- Combinational with a register        ; 1260                       ;
+;                                             ;                            ;
+; Logic element usage by number of LUT inputs ;                            ;
+;     -- 4 input functions                    ; 1483                       ;
+;     -- 3 input functions                    ; 558                        ;
+;     -- <=2 input functions                  ; 691                        ;
+;     -- Register only                        ; 206                        ;
+;                                             ;                            ;
+; Logic elements by mode                      ;                            ;
+;     -- normal mode                          ; 2205                       ;
+;     -- arithmetic mode                      ; 527                        ;
+;                                             ;                            ;
+; Total registers*                            ; 1,502 / 25,304 ( 6 % )     ;
+;     -- Dedicated logic registers            ; 1,466 / 24,624 ( 6 % )     ;
+;     -- I/O registers                        ; 36 / 680 ( 5 % )           ;
+;                                             ;                            ;
+; Total LABs:  partially or completely used   ; 221 / 1,539 ( 14 % )       ;
+; Virtual pins                                ; 0                          ;
+; I/O pins                                    ; 132 / 151 ( 87 % )         ;
+;     -- Clock pins                           ; 8 / 8 ( 100 % )            ;
+;     -- Dedicated input pins                 ; 0 / 9 ( 0 % )              ;
+;                                             ;                            ;
+; M9Ks                                        ; 16 / 66 ( 24 % )           ;
+; Total block memory bits                     ; 131,072 / 608,256 ( 22 % ) ;
+; Total block memory implementation bits      ; 147,456 / 608,256 ( 24 % ) ;
+; Embedded Multiplier 9-bit elements          ; 0 / 132 ( 0 % )            ;
+; PLLs                                        ; 1 / 4 ( 25 % )             ;
+; Global signals                              ; 2                          ;
+;     -- Global clocks                        ; 2 / 20 ( 10 % )            ;
+; JTAGs                                       ; 0 / 1 ( 0 % )              ;
+; CRC blocks                                  ; 0 / 1 ( 0 % )              ;
+; ASMI blocks                                 ; 0 / 1 ( 0 % )              ;
+; Oscillator blocks                           ; 0 / 1 ( 0 % )              ;
+; Impedance control blocks                    ; 0 / 4 ( 0 % )              ;
+; Average interconnect usage (total/H/V)      ; 5.0% / 4.9% / 5.3%         ;
+; Peak interconnect usage (total/H/V)         ; 27.6% / 25.1% / 31.2%      ;
+; Maximum fan-out                             ; 1329                       ;
+; Highest non-global fan-out                  ; 523                        ;
+; Total fan-out                               ; 14711                      ;
+; Average fan-out                             ; 3.11                       ;
++---------------------------------------------+----------------------------+
+*  Register count does not include registers inside RAM blocks or DSP blocks.
+
