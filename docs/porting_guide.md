@@ -194,7 +194,12 @@ with the bus cycle timing.
 The following schematic illustrates how a single bit of the data bus should
 be hooked up when using external level shifters (address bus is analogous):
 
-![Schematic](level_shifters_schematic.svg)
+![Schematic 1](level_shifters_schematic.svg)
+
+For open-collector signals such as `R/W`, a simpler level shifting setup
+can be employed, as illustrated in the following schematic:
+
+![Schematic 2](open_collector_schematic.svg)
 
 
 ### address_decoder
