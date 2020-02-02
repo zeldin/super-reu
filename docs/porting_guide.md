@@ -162,9 +162,10 @@ with the bus cycle timing.
 * `rw_in` - Read/write control input, connect to `R/W` on the expansion port
 * `rw_out` - Read/write control output; when this output is 1 the `R/W` pin
              on the expansion port should be driven low.  When it is 0 output
-             should be tri-stated.
+             should be tri-stated / open.
 * `dma` - DMA output; when this output is 1 the `DMA` pin on the expansion
-          port should be driven low.  When it is 0 output should be tri-stated.
+          port should be driven low.  When it is 0 output should be
+          tri-stated / open.
 * `romlhdata` - Data for `ROML`/`ROMH`.  Should be valid starting one system
                 clock cycle after `romlh_r_strobe` is asserted.
 * `romlh_r_strobe` - This output is set to 1 to trigger a read from ROM into
@@ -235,7 +236,7 @@ the size of the expansion RAM addresses (17-24 bits).
 * `clk` - The system clock (100 MHz)
 * `reset` - Synchronous reset, when 1 all registers will be reset
 * `irq` - When this output is 1, the expansion port `IRQ` pin should be
-          pulled low.  When it is 0, the pin should be tri-stated.
+          pulled low.  When it is 0, the pin should be tri-stated / open.
 * `a` - Address bus input, connect to expansion port address bus
 * `d_d` - Data bus input, connect to expansion port data bus
 * `d_q` - Data bus output, connect to `address_decoder`
