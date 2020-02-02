@@ -191,6 +191,11 @@ with the bus cycle timing.
 * `dma_ack` - Output which will take the value of `dma_req` once the DMA
               transfer has been completed.
 
+The following schematic illustrates how a single bit of the data bus should
+be hooked up when using external level shifters (address bus is analogous):
+
+![Schematic](level_shifters_schematic.svg)
+
 
 ### address_decoder
 
