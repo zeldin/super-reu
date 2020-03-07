@@ -30,6 +30,7 @@ PROJECT_FILES += $(SRCDIR)/dma_engine.v
 
 # Support
 PROJECT_FILES += $(SRCDIR)/phi_recovery.v
+PROJECT_FILES += $(SRCDIR)/reset_generator.v
 
 
 # Chameleon entities

@@ -155,8 +155,10 @@ module chameleon2 (
 
 // Reset
 
-   gen_reset #(.resetCycles(131071))
-   reset_inst(.clk(sysclk), .button(~reset_btn), .reset(reset));
+   reset_generator #(.reset_cycles(131071))
+   reset_generator_inst(.clk(sysclk), .ext_reset_n(reset_in),
+			.int_reset(~reset_btn || ~clk_locked || ~phi_lock),
+			.reset(reset));
 
 // IRQ
 
