@@ -278,7 +278,7 @@ module chameleon2 (
    assign sa_oe = bus_as_en_n;
    assign low_a = bus_a_oe? bus_a_q : 16'bZZZZZZZZZZZZZZZZ;
 
-   bus_manager bus_manager_inst(.clk(sysclk), .phi(phi),
+   bus_manager bus_manager_inst(.clk(sysclk), .reset(reset), .phi(phi),
 				.ds_dir(bus_ds_dir), .ds_en_n(bus_ds_en_n),
 				.d_d(low_d), .d_q(bus_d_q), .d_oe(bus_d_oe),
 				.as_dir(bus_as_dir), .as_en_n(bus_as_en_n),

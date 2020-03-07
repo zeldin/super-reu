@@ -1,5 +1,6 @@
 module bus_manager (
 		    input clk,
+		    input reset,
 
 		    // Recovered clock
 		    input phi,
@@ -115,7 +116,14 @@ module bus_manager (
       romlh_filter = { romlh_filter[0:0], romlh };
       ioef_filter = { ioef_filter[6:0], ioef };
 
-      if (romlh_filter == 2'b11) begin
+      if (reset) begin
+	 ds_dir_reg <= 1'b0;
+	 ds_en_n_reg <= 1'b1;
+	 d_oe_reg <= 1'b0;
+	 as_dir_reg <= 1'b0;
+	 as_en_n_reg <= 1'b1;
+	 a_oe_reg <= 1'b0;
+      end else if (romlh_filter == 2'b11) begin
 	 ds_dir_reg  <= 1'b1;
 	 ds_en_n_reg <= 1'b0;
 	 d_oe_reg    <= 1'b1;
@@ -161,7 +169,7 @@ module bus_manager (
       // DMA timing is generated based on PHI2
 
       state <= 4'd0;
-      case (state)
+      case (state & {4{~reset}})
 	4'd0: // Reset
 	  begin
 	     ds_dir_dma <= 1'b0;
@@ -173,7 +181,10 @@ module bus_manager (
              rw_out_dma <= 1'b0;
 	     dma_reg <= 1'b0;
 
-	     state <= 4'd1;
+	     if (phi)
+	       state <= 4'd1;
+	     else
+	       state <= 4'd0;
 	  end
 	4'd1: // Wait PHI0
 	  if (phi)
