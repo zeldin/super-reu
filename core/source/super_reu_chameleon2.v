@@ -145,10 +145,12 @@ module chameleon2 (
 // PHI2
 
    wire phi;
+   wire phi_lock;
    wire end_of_first_halfcycle;
 
    phi_recovery #(.phase_shift(8))
-   phi_recovery_inst(.clk(sysclk), .phi2_in(~phi2_n), .phi2_out(phi),
+   phi_recovery_inst(.clk(sysclk), .phi2_in(~phi2_n),
+		     .phi2_out(phi), .phi2_out_lock(phi_lock),
 		     .half_m2(end_of_first_halfcycle));
 
 // Reset

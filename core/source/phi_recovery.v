@@ -6,6 +6,7 @@ module phi_recovery
     input phi2_in,
 
     output reg phi2_out,
+    output phi2_out_lock,
 
     output reg full_m2, /* 2nd to last cycle before neg edge */
     output reg full_m1, /* last cycle before neg edge */
@@ -34,7 +35,11 @@ module phi_recovery
    reg [guard_bits-1:0] frac_cnt = 0;
    reg [guard_bits:0] 	new_frac = 0;
 
+   reg [3:0] 		lock_cnt = 4'h0;
 
+   assign phi2_out_lock = lock_cnt[3];
+
+   
    // PHI2 input
    always @(posedge clk) begin
       phi2_in_shiftreg <= { phi2_in_shiftreg[2:0], phi2_in };
@@ -85,4 +90,12 @@ module phi_recovery
       half_p1 <= half_p0;
    end
 
+   // Lock check
+   always @(posedge clk) begin
+      if (|div_adjust[8:2] && |(~div_adjust[8:2]))
+	lock_cnt <= 0;
+      else if(phi2_in_sync && !phi2_out_lock)
+	lock_cnt <= lock_cnt + 1;
+   end   
+   
 endmodule // phi_recovery
