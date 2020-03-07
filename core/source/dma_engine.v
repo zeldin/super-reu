@@ -320,6 +320,8 @@ module dma_engine(
    reg [4:0]  robin_channel = 4'b0000;
    reg        found_robin = 1'b0;
 
+   integer    ch;
+
    always @(posedge clk) begin
 
       if (reset) begin
@@ -335,7 +337,6 @@ module dma_engine(
       end else begin
 
 	 if (read_strobe) begin
-	    integer ch;
 	    d_q_reg <= 8'hFF;
 	    for (ch=0; ch<channels; ch=ch+1)
 	      if (a[7:4] == ch)

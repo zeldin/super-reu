@@ -14,10 +14,10 @@ module address_decoder(
    parameter A = 4;   // aperture size width
 
    parameter a_bits = B;
-   parameter devices;
+   parameter devices = 1;
 
-   parameter [(devices*B-1):0] base_addresses;
-   parameter [(devices*A-1):0] aperture_widths;
+   parameter [(devices*B-1):0] base_addresses = 0;
+   parameter [(devices*A-1):0] aperture_widths = 0;
 
    // Note: If no apertures match, no strobes will fire and read_data
    // will be 0xff.  If multiple apertures match, all relevant strobes
