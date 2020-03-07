@@ -147,9 +147,9 @@ module chameleon2 (
    wire phi;
    wire end_of_first_halfcycle;
 
-   chameleon_phi_clock #(.phase_shift(8))
-   phi_clock_inst(.clk(sysclk), .phi2_n(phi2_n), .phiLocal(phi),
-		  .phiPreHalf(end_of_first_halfcycle));
+   phi_recovery #(.phase_shift(8))
+   phi_recovery_inst(.clk(sysclk), .phi2_in(~phi2_n), .phi2_out(phi),
+		     .half_m2(end_of_first_halfcycle));
 
 // Reset
 

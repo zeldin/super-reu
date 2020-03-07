@@ -28,6 +28,10 @@ PROJECT_FILES += $(SRCDIR)/system_registers.v
 PROJECT_FILES += $(SRCDIR)/mmc64.v
 PROJECT_FILES += $(SRCDIR)/dma_engine.v
 
+# Support
+PROJECT_FILES += $(SRCDIR)/phi_recovery.v
+
+
 # Chameleon entities
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_1mhz.vhd
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_1khz.vhd
