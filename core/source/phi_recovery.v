@@ -92,10 +92,11 @@ module phi_recovery
 
    // Lock check
    always @(posedge clk) begin
-      if (|div_adjust[8:2] && |(~div_adjust[8:2]))
-	lock_cnt <= 0;
-      else if(phi2_in_sync && !phi2_out_lock)
+      if (|div_adjust[8:2] && |(~div_adjust[8:2])) begin
+	 if (lock_cnt != 0)
+	   lock_cnt <= lock_cnt - 1;
+      end else if(phi2_in_sync && !(&lock_cnt))
 	lock_cnt <= lock_cnt + 1;
-   end   
+   end
    
 endmodule // phi_recovery
