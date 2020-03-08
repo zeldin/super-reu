@@ -35,23 +35,14 @@ PROJECT_FILES += $(SRCDIR)/generic_spi_master.v
 
 
 # Chameleon entities
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_1mhz.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_1khz.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_buttons.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_led.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_phi_clock_a.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_phi_clock_e.vhd
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_old_sdram.vhd
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_spi_flash.vhd
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon_usb.vhd
 
 # Chameleon2 edition specific
 C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon2_io_shiftreg.vhd
-C2_RTLFILES += $(C2_RTLPATH)/chameleon/chameleon2_spi.vhd
 
 # Generic support entities
-C2_RTLFILES += $(C2_RTLPATH)/general/gen_pipeline.vhd
-C2_RTLFILES += $(C2_RTLPATH)/general/gen_reset.vhd
 C2_RTLFILES += $(C2_RTLPATH)/general/gen_usart.vhd
 
 

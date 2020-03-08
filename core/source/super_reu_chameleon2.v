@@ -121,8 +121,6 @@ module chameleon2 (
    wire sysclk;
    wire clk_150;
    wire clk_locked;
-   wire ena_1mhz;
-   wire ena_1khz;
 
    // Reset signals
    wire reset;
@@ -135,11 +133,6 @@ module chameleon2 (
 // Clocks
 
    pll50 pll_inst(.inclk0(clk50m), .c0(sysclk), .c2(clk_150), .c3(ram_clk), .locked(clk_locked));
-
-   chameleon_1mhz #(.clk_ticks_per_usec(100))
-   clk1mhz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz));
-
-   chameleon_1khz clk1khz_inst(.clk(sysclk), .ena_1mhz(ena_1mhz), .ena_1khz(ena_1khz));
 
 
 // PHI2
