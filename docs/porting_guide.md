@@ -131,6 +131,8 @@ This module handles the interface to the C64 expansion port, and deals
 with the bus cycle timing.
 
 * `clk` - The system clock (100 MHz)
+* `reset` - Synchronous reset, when 1 the bus will be tristated and DMA
+            deasserted
 * `phi` - This should be a recreated PHI signal which is in phase with
           the external `PHI2` signal but synced with the `clk` clock for
           setup and hold purposes
@@ -338,3 +340,78 @@ ROM addresses.  Use 14 for 16K ROM (`ROML`+`ROMH`), 13 for 8K ROM (`ROML` only).
 * `write_data` - Write port data input
 * `read_strobe` - Read port strobe, data will be available the following cycle
 * `write_strobe` - Write port strobe, data should be made available the same cycle
+
+
+### phi_recovery
+
+A simplified version of chameleon_phi_clock by Peter Wendrich.  It's
+a PLL with an NCO that generates a local version of the PHI2 clock offset
+by a configurable number of system clocks.
+
+The instantiation parameter `phase_shift` selects the number of system
+clocks that the locally generated PHI2 clock precedes the C64 PHI2 clock.
+
+* `clk` - System clock
+* `phi2_in` - The PHI2 signal from the C64 expansion port
+* `phi2_out` - The locally regenerated PHI2 clock
+* `phi2_out_lock` - This output is set to 1 when the locally generated
+   PHI2 clock is phase locked to the C64 PHI2 clock.
+* `full_m2` - This output is set to 1 during the 2nd to last cycle before
+              the falling edge of `phi2_out`
+* `full_m1` - This output is set to 1 during the last cycle before the
+              falling edge of `phi2_out`
+* `full_p0` - This output is set to 1 during the first cycle after the
+              falling edge of `phi2_out`
+* `full_p1` - This output is set to 1 during the 2nd cycle after the
+              falling edge of `phi2_out`
+* `half_m2` - This output is set to 1 during the 2nd to last cycle before
+              the rising edge of `phi2_out`
+* `half_m1` - This output is set to 1 during the last cycle before the
+              rising edge of `phi2_out`
+* `half_p0` - This output is set to 1 during the first cycle after the
+              rising edge of `phi2_out`
+* `half_p1` - This output is set to 1 during the 2nd cycle after the
+              rising edge of `phi2_out`
+
+
+### reset_generator
+
+A cold/warm reset generator.  The instantiation parameter `reset_cycles`
+selects the number of system cycles after which the reset signal is
+deasserted again.
+
+* `clk` - System clock
+* `ext_reset_n` - External reset input.  Connect this to the reset signal
+  from the C64 expansion port.  In order to prevent feedback loops, this
+  input reacts only to a falling edge.
+* `int_reset` - A synchronous input which will trigger a warm reset when 1
+* `reset` - Reset output
+
+
+### generic_spi_master
+
+An SPI master implementation for use with the mmc64 module, or any other
+function needing to perform SPI transfers.  The instantiation parameters
+`clk_speed` and `sck_speed` should indicate the speed of the system clock
+and the desired SCK speed, respectively.  Any unit (Hz, kHz, MHz) can be
+used as long as it is the same for both parameters.  A second "fast" SCK
+speed (there is no requirement that it is actually faster) can also be
+specified using the parameter `sck_fast_speed`.
+
+
+* `clk` - System clock
+* `reset` - Reset input
+* `sclk` - Connect to SCLK pin
+* `miso` - Connect to MISO pin
+* `mosi` - Connect to MOSI pin
+* `req` - Toggle this input to start a new SPI transfer
+* `ack` - This output takes the same value as `req` when the transfer is
+          completed
+* `fast_speed_en` - When two speeds are configured, a 1 here selects the
+                    "fast" speed.  If `sck_fast_speed` is not specified,
+                    this input does not need to be connected
+* `d` - The byte to send on MOSI (should remain valid until the transfer
+        is acknowledged)
+* `q` - The byte which was receoved on MISO (will be valid from the point
+        where the transfer is acknowledeged to the point where a new
+        transfer is requested)
