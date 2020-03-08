@@ -200,11 +200,13 @@ module chameleon2 (
    wire [7:0]  mmc64_spi_d;
    wire [7:0]  spi_q;
 
-   chameleon2_spi #(.clk_ticks_per_usec(100))
+   generic_spi_master
+     #(.clk_speed(100000), .sck_speed(250), .sck_fast_speed(8000))
    spi_inst(.clk(sysclk), .sclk(spi_clk), .miso(spi_miso), .mosi(spi_mosi),
 	    .req(rom_load_done? mmc64_spi_req : flash_spi_req),
-	    .ack(spi_ack), .speed(spi_speed),
+	    .ack(spi_ack), .fast_speed_en(spi_speed | ~rom_load_done),
 	    .d(rom_load_done? mmc64_spi_d : flash_spi_d), .q(spi_q));
+
 
 // NOR flash
 
