@@ -126,7 +126,7 @@ movie_player:
 	lda $df05
 	adc frame_header+3
 	sta $df05
-	bne @nowrap1
+	bcc @nowrap1
 	inc $df06
 @nowrap1:
 
