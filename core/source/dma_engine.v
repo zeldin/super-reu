@@ -29,7 +29,7 @@ module dma_engine(
    parameter ram_a_bits = 17;  // 17-24
    parameter channels = 1; // 1-16
 
-   localparam ram_a_reg_bits = (ram_a_bits > 19? 24 : 19);
+   localparam ram_a_reg_bits = (ram_a_bits > 19? ram_a_bits : 19);
 
    wire        exp_512k;
    wire [3:0]  version;
