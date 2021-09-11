@@ -22,7 +22,7 @@ module hyperram(input clk,
 		input [31:0] a,
 		input [15:0] d,
 		input [1:0] ds,
-		output [15:0] q,
+		output reg [15:0] q,
 		
 		input req,
 		output reg ack = 1'b0);
@@ -69,8 +69,6 @@ module hyperram(input clk,
    reg [47:0] ca;
    reg [15:0] data;
    reg [1:0]  ds_int;
-
-   assign q = data;
 
    always @(posedge clk)
      if (reset) begin
@@ -146,7 +144,7 @@ module hyperram(input clk,
 	  else begin
 	     ck <= 1'b0;
 	     dlycnt <= TX_LATENCY;
-	     data <= dq_in;
+	     q <= dq_in;
 	  end
 	  4'b1011: begin
 	     rwds_oe <= 1'b0;
