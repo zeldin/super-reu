@@ -288,7 +288,8 @@ module chameleon2 (
 				.ff00_w_strobe(ff00_write_strobe),
 				.dma_a(io_dma_a), .dma_d(io_dma_d),
 				.dma_q(io_dma_q), .dma_rw(io_dma_rw),
-				.dma_req(io_dma_req), .dma_ack(io_dma_ack));
+				.dma_req(io_dma_req), .dma_ack(io_dma_ack),
+				.dma_alloc(io_dma_alloc));
 
 // IO registers
 
@@ -304,6 +305,7 @@ module chameleon2 (
    wire        io_dma_rw;
    wire        io_dma_req;
    wire        io_dma_ack;
+   wire        io_dma_alloc;
 
    wire [7:0]  io_read_data_sys;
    wire [7:0]  io_read_data_mmc64;
@@ -352,6 +354,7 @@ module chameleon2 (
 		   .dma_a(io_dma_a), .dma_d(io_dma_d),
 		   .dma_q(io_dma_q), .dma_rw(io_dma_rw),
 		   .dma_req(io_dma_req), .dma_ack(io_dma_ack),
+		   .dma_alloc(io_dma_alloc),
 		   .ram_a(sdram_a), .ram_d(sdram_d), .ram_q(sdram_q),
 		   .ram_we(sdram_we), .ram_req(sdram_req), .ram_ack(sdram_ack),
 		   .phi2tick(end_of_first_halfcycle));

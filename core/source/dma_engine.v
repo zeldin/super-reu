@@ -15,6 +15,7 @@ module dma_engine(
 		  output        dma_rw,
 		  output        dma_req,
 		  input         dma_ack,
+		  output        dma_alloc,
 
 		  output[(ram_a_bits-1):0] ram_a,
 		  output[7:0] ram_d,
@@ -47,6 +48,7 @@ module dma_engine(
    reg [7:0] dma_d_reg = 8'h00;
    reg 	     dma_rw_reg = 1'b0;
    reg 	     dma_req_reg = 1'b0;
+   reg 	     dma_alloc_reg = 1'b0;
    reg [7:0] ram_d_reg = 8'h00;
    reg 	     ram_we_reg = 1'b0;
    reg 	     ram_req_reg = 1'b0;
@@ -56,6 +58,7 @@ module dma_engine(
    assign dma_d = dma_d_reg;
    assign dma_rw = dma_rw_reg;
    assign dma_req = dma_req_reg;
+   assign dma_alloc = dma_alloc_reg;
    assign ram_d = ram_d_reg;
    assign ram_we = ram_we_reg;
    assign ram_req = ram_req_reg;
@@ -327,6 +330,7 @@ module dma_engine(
       if (reset) begin
 	 dma_req_reg <= dma_ack;
 	 ram_req_reg <= ram_ack;
+	 dma_alloc_reg <= 1'b0;
 
 	 state <= 4'b0000;
 
@@ -358,6 +362,7 @@ module dma_engine(
 	 channel_selected <= 1'b0;
 	 case (state)
 	   4'b0000: begin
+	      dma_alloc_reg <= 1'b0;
 	      if (found_robin)
 		 found_robin <= 1'b0;
 	      if (found_robin && runnings[robin_channel]) begin
@@ -373,9 +378,11 @@ module dma_engine(
 		 end
 		 state <= {1'b1, ttypes[robin_channel], 1'b0};
 		 channel_selected <= 1'b1;
+		 dma_alloc_reg <= 1'b1;
 	      end // if (found_robin && runnings[robin_channel])
 	   end // case: 4'b0000
 	   4'b0001: begin
+	      dma_alloc_reg <= 1'b0;
 	      if (found_robin)
 		 found_robin <= 1'b0;
 	      if (found_robin && runnings[robin_channel]) begin
@@ -391,6 +398,7 @@ module dma_engine(
 		 end
 		 state <= {1'b1, ttypes[robin_channel], 1'b0};
 		 channel_selected <= 1'b1;
+		 dma_alloc_reg <= 1'b1;
 	      end else
 	      if (last_transfer[active_channel] || ~runnings[active_channel]) begin
 		 state <= 4'b0000;
@@ -406,6 +414,7 @@ module dma_engine(
 		 end
 		 state <= {1'b1, ttypes[active_channel], 1'b0};
 		 channel_selected <= 1'b1;
+		 dma_alloc_reg <= 1'b1;
 	      end
 	   end
 	   4'b1000: // C64 -> RAM step 1

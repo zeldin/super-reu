@@ -41,6 +41,7 @@ module bus_manager (
 		    input dma_rw,
 		    input dma_req,
 		    output dma_ack,
+		    input dma_alloc,
 
 		    // FF00 special
 		    output ff00_w_strobe
@@ -65,6 +66,7 @@ module bus_manager (
    reg 	      dma_reg = 1'b0;
    reg [7:0]  dma_q_reg;
    reg        dma_ack_reg = 1'b0;
+   reg        dma_dummy_cycle = 1'b0;
 
    assign ds_dir  = ds_dir_reg;
    assign ds_en_n = ds_en_n_reg;
@@ -180,6 +182,7 @@ module bus_manager (
 	     a_oe_dma <= 1'b0;
              rw_out_dma <= 1'b0;
 	     dma_reg <= 1'b0;
+	     dma_dummy_cycle <= 1'b0;
 
 	     if (phi)
 	       state <= 4'd1;
@@ -227,7 +230,7 @@ module bus_manager (
 	       dma_delay <= dma_delay - 1;
 		state <= 4'd13;
 	     end else begin
-		if (dma_req == dma_ack_reg)
+		if (dma_req == dma_ack_reg && !dma_alloc)
 		  dma_reg <= 1'b0;
 		else if (can_request_dma)
 		  dma_reg <= 1'b1;
@@ -259,18 +262,25 @@ module bus_manager (
 	  end
 	4'd8: // 1_01
 	  begin
-	     a_q_reg <= dma_a;
-	     d_q_reg <= dma_d;
+	     if (dma_req != dma_ack_reg) begin
+		dma_dummy_cycle <= 1'b0;
+		a_q_reg <= dma_a;
+		d_q_reg <= dma_d;
+		ds_dir_dma <= dma_rw;
+	     end else begin
+		dma_dummy_cycle <= 1'b1;
+		// Read address 0
+		a_q_reg <= 0;
+	     end
 	     as_dir_dma <= 1'b1;
-	     ds_dir_dma <= dma_rw;
-
 	     state <= 4'd9;
 	  end
 	4'd9: // 1_02
 	  begin
 	     as_en_n_dma <= 1'b0;
 	     a_oe_dma <= 1'b1;
-             rw_out_dma <= dma_rw;
+	     if (!dma_dummy_cycle)
+               rw_out_dma <= dma_rw;
 
 	     state <= 4'd10;
 	  end
@@ -293,7 +303,8 @@ module bus_manager (
 		dma_q_reg <= d_d;
 		state <= 4'd12;
 	     end else begin
-		dma_ack_reg <= dma_req;
+		if (!dma_dummy_cycle)
+		  dma_ack_reg <= dma_req;
 
 		state <= 4'd2;
 	     end

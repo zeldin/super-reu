@@ -193,6 +193,11 @@ with the bus cycle timing.
 * `dma_req` - Input which should be toggled to request a new DMA transfer
 * `dma_ack` - Output which will take the value of `dma_req` once the DMA
               transfer has been completed.
+* `dma_alloc` - When this input is 1, the bus manager will assert DMA at the
+                next opportunity (if it not already asserted), and keep it
+                asserted until the input returns to 0, even if there are no
+                DMA transfers requested using `dma_req`.  This can be used
+                to lock the bus for multiple transfers.
 
 The following schematic illustrates how a single bit of the data bus should
 be hooked up when using external level shifters (address bus is analogous):
@@ -251,6 +256,7 @@ the size of the expansion RAM addresses (17-24 bits).
 * `dma_rw` - Connect to `bus_manager`
 * `dma_req` - Connect to `bus_manager`
 * `dma_ack` - Connect to `bus_manager`
+* `dma_alloc` - Connect to `bus_manager`
 * `ram_a` - Address output for RAM port
 * `ram_d` - Data output for RAM port writes
 * `ram_q` - Data input from RAM port reads
