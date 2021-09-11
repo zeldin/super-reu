@@ -31,8 +31,6 @@ module memory_arbitrator
    reg [log2(masters-1)-1:0] robin;
    reg busy;
 
-   assign m_q = {masters{s_q}};
-
    genvar m;
    generate
       for (m=masters; m>=0; m=m-1) begin : MASTER
@@ -43,6 +41,7 @@ module memory_arbitrator
 	 wire [(dbits-1):0] d_out;
 	 wire select;
 	 wire prio;
+	 reg [(dbits-1):0] q;
 
 	 if (m == masters) begin
 	    assign robin_out = robin;
@@ -53,6 +52,7 @@ module memory_arbitrator
 	    assign select = 1'b0;
 	    assign prio = 1'b0;
 	 end else begin
+	    assign m_q[((m+1)*abits-1):(m*abits)] = q;
 	    assign select = (m_req[m] != m_ack_next[m]) &&
 			    (m > robin || !MASTER[m+1].prio);
 
@@ -62,6 +62,9 @@ module memory_arbitrator
 	    assign a_out = (select? m_a[((m+1)*abits-1):(m*abits)] : MASTER[m+1].a_out);
 	    assign d_out = (select? m_d[((m+1)*dbits-1):(m*dbits)] : MASTER[m+1].d_out);
 	    assign prio = (select && m > robin? 1'b1 : MASTER[m+1].prio);
+	    always @(posedge clk)
+	      if (!reset && s_ack == s_req && busy && robin == m)
+		q <= s_q;
 	 end // else: !if(m == masters)
       end // block: MASTER
    endgenerate
