@@ -226,7 +226,7 @@ module orangecart (
 
    assign hram_arb_q = (hram_arb_a[0]? hram_arb_wq[15:8] : hram_arb_wq[7:0]);
    
-   hyperram #(.CLK_HZ(80000000))
+   hyperram #(.CLK_HZ(80000000),.DUAL_DIE(1), .FIXED_LATENCY_ENABLE(1))
      hyperram_inst(.clk(sysclk), .reset(reset), .pll_locked(hyper_lock),
 		   .req(hram_arb_req), .ack(hram_arb_ack),
 		   .as(0), .linear_burst(0),

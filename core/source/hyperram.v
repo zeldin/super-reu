@@ -28,7 +28,8 @@ module hyperram(input clk,
 		output reg ack = 1'b0);
 
    parameter CLK_HZ = 166000000;
-   parameter FIXED_LATENCY_ENABLE = 1; // Required on 128 Mbit part
+   parameter DUAL_DIE = 0;
+   parameter FIXED_LATENCY_ENABLE = 0;
    parameter INITIAL_LATENCY_OVERRIDE = 0;
 
    generate begin
@@ -37,6 +38,8 @@ module hyperram(input clk,
       if (INITIAL_LATENCY_OVERRIDE &&
 	  (INITIAL_LATENCY_OVERRIDE < 3 || INITIAL_LATENCY_OVERRIDE > 6))
 	$error("Invalid initial latency override");
+      if (DUAL_DIE && !FIXED_LATENCY_ENABLE)
+	$error("Must use fixed latency for dual die part");
    end endgenerate
 
    localparam RESET_DELAY = CLK_HZ / 5000000 + 1;
@@ -153,7 +156,11 @@ module hyperram(input clk,
 	  end
 	  4'b1100: begin
 	     state <= 4'b1100;
-	     if (req != ack) begin
+	     if (DUAL_DIE && ca[47:46] == 2'b01 && ca[35] == 0) begin
+		/* Repeat config for second die */
+		ca[35] <= 1'b1;
+		state <= 4'b0001;
+	     end else if (req != ack) begin
 		ca <= {~we, as, linear_burst | (as & we),
 		       a[31:3], {13{1'b0}}, a[2:0]};
 		data <= d;
