@@ -63,7 +63,13 @@ module orangecart (
 	       output exrom,
 	       output irq_out,
 	       output nmi_out,
-	       output dma_out
+	       output dma_out,
+
+// Clockport
+	       output ciowr,
+	       output ciord,
+	       output crtccs,
+	       output csparecs
 	       );
 
    assign game = 1'b0;
@@ -73,6 +79,11 @@ module orangecart (
    assign led_r = rom_load_done;
    assign led_g = sdcard_clk;
    assign led_b = 1'b1;
+
+   assign ciord = ~clockport_read;
+   assign ciowr = ~clockport_write;
+   assign crtccs = 1'b1;
+   assign csparecs = ~clockport_enable;
 
    // Clock signals
    wire 	      sysclk;
@@ -270,6 +281,10 @@ module orangecart (
    assign a_enb_h = bus_as_en_n;
    assign low_a = bus_a_oe? bus_a_q : 16'bZZZZZZZZZZZZZZZZ;
 
+   wire        clockport_enable;
+   wire        clockport_read;
+   wire        clockport_write;
+
    bus_manager bus_manager_inst(.clk(sysclk), .reset(reset), .phi(phi),
 				.ds_dir(bus_ds_dir), .ds_en_n(bus_ds_en_n),
 				.d_d(low_d), .d_q(bus_d_q), .d_oe(bus_d_oe),
@@ -286,7 +301,10 @@ module orangecart (
 				.dma_a(io_dma_a), .dma_d(io_dma_d),
 				.dma_q(io_dma_q), .dma_rw(io_dma_rw),
 				.dma_req(io_dma_req), .dma_ack(io_dma_ack),
-				.dma_alloc(io_dma_alloc));
+				.dma_alloc(io_dma_alloc),
+				.clockport_enable(clockport_enable),
+				.clockport_read(clockport_read),
+				.clockport_write(clockport_write));
 
 
 // IO registers
@@ -326,10 +344,12 @@ module orangecart (
 			   .write_strobes({io_write_strobe_sys, io_write_strobe_mmc64, io_write_strobe_dma}),
 			   .read_datas({io_read_data_sys, io_read_data_mmc64, io_read_data_dma}));
 
-   system_registers system_registers_inst(.clk(sysclk), .a(low_a[3:0]),
+   system_registers system_registers_inst(.clk(sysclk), .reset(reset),
+					  .a(low_a[3:0]),
 					  .d_d(low_d), .d_q(io_read_data_sys),
 					  .read_strobe(io_read_strobe_sys),
-					  .write_strobe(io_write_strobe_sys));
+					  .write_strobe(io_write_strobe_sys),
+					  .clockport_enable(clockport_enable));
 
    mmc64 #(.ram_a_bits(24))
    mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),
