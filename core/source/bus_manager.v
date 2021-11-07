@@ -44,8 +44,16 @@ module bus_manager (
 		    input dma_alloc,
 
 		    // FF00 special
-		    output ff00_w_strobe
+		    output ff00_w_strobe,
+
+		    // Clockport
+		    input clockport_enable,
+		    output reg clockport_read,
+		    output reg clockport_write
 		    );
+
+   parameter CLOCKPORT_START = 16'hde02;
+   parameter CLOCKPORT_END   = 16'hde10;
 
    reg 	     ds_dir_reg = 1'b0;
    reg 	     ds_en_n_reg = 1'b1;
@@ -91,8 +99,8 @@ module bus_manager (
    reg 	     ff00_w_strobe_reg;
 
    assign romlh_r_strobe = romlh_filter == 2'b01;
-   assign ioef_r_strobe = (rw_in == 1'b1) & (ioef_filter[1:0] == 2'b01);
-   assign ioef_w_strobe = (rw_in == 1'b0) & (ioef_filter == 8'b01111111);
+   assign ioef_r_strobe = (rw_in == 1'b1) & (ioef_filter[1:0] == 2'b01) & ~clockport_active;
+   assign ioef_w_strobe = (rw_in == 1'b0) & (ioef_filter == 8'b01111111) & ~clockport_active;
    assign ff00_w_strobe = ff00_w_strobe_reg;
 
    wire      ba_asserted;
@@ -105,6 +113,9 @@ module bus_manager (
    wire      can_request_dma;
    assign    can_request_dma = cpu_stopped_by_ba | read_follows_write;
 
+   reg       clockport_range;
+   wire      clockport_active;
+   assign    clockport_active = clockport_enable && clockport_range;
 
    reg [3:0] state = 4'd0;
    reg [3:0] dma_delay = 4'd0;
@@ -117,6 +128,10 @@ module bus_manager (
 
       romlh_filter = { romlh_filter[0:0], romlh };
       ioef_filter = { ioef_filter[6:0], ioef };
+
+      clockport_read <= 0;
+      clockport_write <= 0;
+      clockport_range <= (a_d[8:0] >= CLOCKPORT_START[8:0] && a_d[8:0] < CLOCKPORT_END[8:0]);
 
       if (reset) begin
 	 ds_dir_reg <= 1'b0;
@@ -142,9 +157,17 @@ module bus_manager (
 	    ds_en_n_reg <= 1'b1;
 	 end
       end else if (ioef_filter[1:0] == 2'b11) begin
-	 ds_dir_reg  <= rw_in;
-	 ds_en_n_reg <= 1'b0;
-	 d_oe_reg    <= rw_in;
+	 if (clockport_active) begin
+	    ds_dir_reg  <= 1'b0;
+	    ds_en_n_reg <= 1'b0;
+	    d_oe_reg    <= 1'b0;
+	    clockport_read <= rw_in;
+	    clockport_write <= ~rw_in;
+	 end else begin
+	    ds_dir_reg  <= rw_in;
+	    ds_en_n_reg <= 1'b0;
+	    d_oe_reg    <= rw_in;
+	 end
 	 if (rw_in)
 	   d_q_reg   <= ioefdata;
 	 as_dir_reg  <= 1'b0;
@@ -155,8 +178,13 @@ module bus_manager (
 	    as_en_n_reg <= as_en_n_dma;
 	    a_oe_reg    <= a_oe_dma;
 	    ds_dir_reg  <= ds_dir_dma;
-	    ds_en_n_reg <= 1'b1;
-	    d_oe_reg    <= 1'b1;
+	    if (clockport_active) begin
+	       ds_en_n_reg <= ds_en_n_dma;
+	       d_oe_reg    <= d_oe_dma;
+	    end else begin
+	       ds_en_n_reg <= 1'b1;
+	       d_oe_reg    <= 1'b1;
+	    end
 	 end
       end else begin
 	 ds_dir_reg  <= ds_dir_dma;

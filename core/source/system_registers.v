@@ -1,10 +1,12 @@
 module system_registers(
 			input clk,
+			input reset,
 			input[3:0] a,
 			input[7:0] d_d,
 			output[7:0] d_q,
 			input read_strobe,
-			input write_strobe
+			input write_strobe,
+			output reg clockport_enable
 			);
 
    reg [7:0] d_q_reg;
@@ -15,7 +17,16 @@ module system_registers(
    reg [7:0] last_write_addr;
    reg [7:0] last_write_data;
 
-   always @(posedge clk) begin
+   reg de01_enabled;
+
+   always @(posedge clk)
+
+     if(reset) begin
+
+	de01_enabled <= 1'b1;
+	clockport_enable <= 1'b0;
+	
+     end else begin
 
       if (read_strobe) begin
 	 d_q_reg <= 8'hFF;
@@ -33,6 +44,11 @@ module system_registers(
 	 last_write_data <= d_d;
 
 	 case (a[3:0])
+	   4'h1:
+	     if (de01_enabled) begin
+		if (d_d[0]) clockport_enable <= 1'b1;
+		de01_enabled <= 1'b0;
+	     end
 	   4'h2: scratch <= d_d;
 	 endcase
       end

@@ -185,6 +185,23 @@ with the bus cycle timing.
                     data to write from the expansion port data bus.
 * `ff00_w_strobe` - This output is set to 1 for one system clock cycle when
                     a write to address FF00 is detected.
+* `clockport_enable` - Set this input to 1 to redirect the I/O range from
+                       the address given by the address in parameter
+                       `CLOCKPORT_START` (inclusive, default value DE02) to
+                       the address given by the address in parameter
+                       `CLOCKPORT_END` (exclusive, default value DE10) to
+                       the clockport instead of the `ioef_r_strobe`and
+                       `ioef_w_strobe` signals.  If clockport functionality
+                       is not needed, it can be disabled by tying this signal
+                       constant low.
+* `clockport_read` - This output is set to 1 when the clock port `IORD` signal
+                     should be asserted (low), together with the desired
+                     chip select pin.  If clockport functionality is not
+                     needed, this signal can be ignored.
+* `clockport_write` - This output is set to 1 when the clock port `IOWR` signal
+                      should be asserted (low), together with the desired
+                      chip select pin.  If clockport functionality is not
+                      needed, this signal can be ignored.
 * `dma_a` - DMA request address input
 * `dma_d` - DMA request data input (for write cycles)
 * `dma_q` - DMA request data output (for read cycles), valid once the
@@ -324,11 +341,14 @@ expansion RAM addresses (17-24 bits).
 A dummy register file example for adding new functionality.
 
 * `clk` - System clock
+* `reset` - Synchronous reset, when 1 all registers will be reset
 * `a` - Address bus input, connect to expansion port address bus
 * `d_d` - Data bus input, connect to expansion port data bus 
 * `d_q` - Data bus output, connect to `address_decoder`
 * `read_strobe` - Connect to `address_decoder`
 * `write_strobe` - Connect to `addres_decoder`
+* `clockport_enable` - Set to 1 if the first write to $DE01 has the LSB set
+                       (RR compatibility)
 
 
 ### cart_bram
