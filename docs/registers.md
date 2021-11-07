@@ -256,3 +256,10 @@ to restore the card to a known state afterwards.
 
 The expansion RAM address will automatically increment as bytes are
 transferred.  At the end of a successful transfer, Block Count will be 0.
+
+
+Clock port access
+-----------------
+
+The clock port can be mapped to the range $DE02-$DE0F by writing 1 to
+$DE01.
