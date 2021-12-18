@@ -1,6 +1,7 @@
 TARGET ?= chameleon2
 
 chameleon2_MAKEFILE := quartus.mk
+orangecart_MAKEFILE := symbiflow.mk
 
 .DEFAULT_GOAL:=dummy
 
