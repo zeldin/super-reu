@@ -124,6 +124,7 @@ module chameleon2 (
 
    // Reset signals
    wire reset;
+   wire soft_reset;
 
    // LED signals
    wire green_led;
@@ -151,7 +152,7 @@ module chameleon2 (
    reset_generator #(.reset_cycles(4095))
    reset_generator_inst(.clk(sysclk), .ext_reset_n(reset_in),
 			.int_reset(~reset_btn || ~clk_locked || ~phi_lock),
-			.reset(reset));
+			.soft_reset(soft_reset), .reset(reset));
 
 // IRQ
 
@@ -167,7 +168,7 @@ module chameleon2 (
 
    chameleon2_io_shiftreg shiftreg_inst(.clk(sysclk), .ser_out_clk(ser_out_clk),
 					.ser_out_dat(ser_out_dat), .ser_out_rclk(ser_out_rclk),
-					.reset_c64(reset | ~rom_load_done),
+					.reset_c64(reset | soft_reset | ~rom_load_done),
 					.reset_iec(1'b0),
 					.ps2_mouse_clk(1'b0), .ps2_mouse_dat(1'b0),
 					.ps2_keyboard_clk(1'b0), .ps2_keyboard_dat(1'b0),
@@ -340,7 +341,8 @@ module chameleon2 (
 					  .d_d(low_d), .d_q(io_read_data_sys),
 					  .read_strobe(io_read_strobe_sys),
 					  .write_strobe(io_write_strobe_sys),
-					  .clockport_enable(clockport_enable));
+					  .clockport_enable(clockport_enable),
+					  .soft_reset(soft_reset));
 
    mmc64 #(.ram_a_bits(24))
    mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),

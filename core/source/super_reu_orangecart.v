@@ -91,8 +91,9 @@ module orangecart (
 
    // Reset signals
    wire reset;
+   wire soft_reset;
  
-   assign reset_out = reset | ~rom_load_done | ~hyper_lock;
+   assign reset_out = reset | soft_reset | ~rom_load_done | ~hyper_lock;
 
   
 // Clocks
@@ -127,7 +128,7 @@ module orangecart (
    reset_generator #(.reset_cycles(4095))
    reset_generator_inst(.clk(sysclk), .ext_reset_n(reset_in),
 			.int_reset(~usr_btn || ~sysclk_lock || ~phi_lock),
-			.reset(reset));
+			.soft_reset(soft_reset), .reset(reset));
    
    
 // IRQ
@@ -349,7 +350,8 @@ module orangecart (
 					  .d_d(low_d), .d_q(io_read_data_sys),
 					  .read_strobe(io_read_strobe_sys),
 					  .write_strobe(io_write_strobe_sys),
-					  .clockport_enable(clockport_enable));
+					  .clockport_enable(clockport_enable),
+					  .soft_reset(soft_reset));
 
    mmc64 #(.ram_a_bits(24))
    mmc64_inst(.clk(sysclk), .reset(reset), .a(low_a[3:0]), .d_d(low_d),

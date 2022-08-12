@@ -9,6 +9,10 @@
 	.import fileselector, movie_player
 
 
+	.zeropage
+
+isc128:	.res 1
+	
 	.code
 	
 	.word start
@@ -39,6 +43,7 @@ start:
 	lda #$7f
 	sta $dc00
 	lda #0
+	sta isc128
 	sta $d418
 	sta $d404
 	sta $d40b
@@ -48,6 +53,10 @@ start:
 	and #%00000100
 	ora #%00000011
 	sta $de11
+	jsr checkc128
+	bne @not128
+	inc isc128
+@not128:
 
 	jsr init_screen
 
@@ -90,6 +99,12 @@ start:
 	jsr printtext
 	scrcode "Press Q to quit into BASIC@"
 	jsr nextrow
+	lda isc128
+	beq @noprompt128
+	jsr printtext
+	scrcode "Press ",$5f," to enter C128 mode@"
+	jsr nextrow
+@noprompt128:
 	jsr printtext
 	scrcode "RESTORE returns to this screen@"
 	
@@ -97,18 +112,19 @@ start:
 	sta $d011
 
 
-@wait_here:	
+wait_here:	
 	lda $dc01
 	lsr
 	bcc @next_movie
 	lsr
+	bcc go128
 	lsr
 	lsr
 	lsr
 	lsr
 	lsr
 	bcc exit_to_basic
-	jmp @wait_here
+	jmp wait_here
 
 @next_movie:
 	lda #0
@@ -121,10 +137,59 @@ start:
 	sta $d011
 	jmp @next_movie
 
+go128:
+	lda isc128
+	beq wait_here
+	sei
+	ldx #$ff
+	txs
+	ldx #@stub2_size-1
+@copy_stub2:
+	lda @stub2,x
+	sta $1f0,x
+	dex
+	bpl @copy_stub2
+	lda #$52
+	ldy #%10100011
+	jmp $1f0
+
+@stub2:
+	sty $de11
+	sta $de00
+	bne @stub2
+
+@stub2_size = *-@stub2
+	
 
 irq_handler:
 	inc $d020
 	jmp irq_handler
+
+
+	; Check for C128, result in Z
+checkc128:
+	lda #$ff
+	sta $d02f
+	lda #$fe
+	sta $d030
+	ldx $d02f
+	ldy $d030
+	lda #$00
+	sta $d02f
+	sta $d030
+	lda $d02f
+	stx $d02f
+	inx
+	bne @not128
+	iny
+	iny
+	bne @not128
+	cmp #$f8   ; d02f implements 3 bits for extra keyboard columns
+	bne @not128
+	lda $d030  ; d030 implements 2 bits for 2MHz and test mode
+	cmp #$fc
+@not128:
+	rts
 
 
 exit_to_basic:

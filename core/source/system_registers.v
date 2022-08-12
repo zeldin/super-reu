@@ -6,7 +6,8 @@ module system_registers(
 			output[7:0] d_q,
 			input read_strobe,
 			input write_strobe,
-			output reg clockport_enable
+			output reg clockport_enable,
+			output reg soft_reset
 			);
 
    reg [7:0] d_q_reg;
@@ -16,6 +17,7 @@ module system_registers(
    reg [7:0] scratch;
    reg [7:0] last_write_addr;
    reg [7:0] last_write_data;
+   reg [7:0] soft_rst_cnt;
 
    reg de01_enabled;
 
@@ -25,9 +27,18 @@ module system_registers(
 
 	de01_enabled <= 1'b1;
 	clockport_enable <= 1'b0;
-	
+	soft_reset <= 1'b0;
+	soft_rst_cnt <= 0;
+
      end else begin
 
+      if (soft_rst_cnt == 0)
+	soft_reset <= 0;
+      else begin
+	 soft_reset <= 1;
+	 soft_rst_cnt <= soft_rst_cnt + 1;
+      end
+	
       if (read_strobe) begin
 	 d_q_reg <= 8'hFF;
 	 case (a[3:0])
@@ -44,6 +55,8 @@ module system_registers(
 	 last_write_data <= d_d;
 
 	 case (a[3:0])
+	   4'h0:
+	     if (d_d == 8'h52) soft_rst_cnt <= 8'h01;
 	   4'h1:
 	     if (de01_enabled) begin
 		if (d_d[0]) clockport_enable <= 1'b1;

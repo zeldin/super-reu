@@ -1,6 +1,7 @@
 module reset_generator(input clk,
 		       input ext_reset_n,
 		       input int_reset,
+		       input soft_reset,
 
 		       output reg reset);
 
@@ -20,7 +21,7 @@ module reset_generator(input clk,
    always @(posedge clk) begin
       ext_reset_n_sync = { ext_reset_n_sync[2:0], ext_reset_n };
       reset <= 1'b1;
-      if (ext_reset_n_sync[3:2] == 2'b10 || int_reset)
+      if ((ext_reset_n_sync[3:2] == 2'b10 && !soft_reset) || int_reset)
 	cnt <= 0;
       else if(cnt != reset_cycles)
 	cnt <= cnt + 1;
