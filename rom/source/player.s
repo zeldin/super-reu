@@ -17,6 +17,7 @@ frame_header:	.res 16
 
 vswap:	.res 1
 aswap:	.res 1
+isntsc:	.res 1
 
 	.code
 	
@@ -51,6 +52,7 @@ movie_player:
 	sta $d404
 	sta $d40b
 	sta $d412
+	jsr check_ntsc
 
 	ldx #2
 	lda #$10
@@ -99,6 +101,7 @@ movie_player:
 	eor #$10
 	sta aswap
 	tax
+	ldy isntsc
 	lda $df04
 	sta $df14,x
 	lda $df05
@@ -112,9 +115,9 @@ movie_player:
 	lda #$80
 	sta $df1a,x
 	sta $df1b,x
-	lda frame_header+10
+	lda frame_header+10,y
 	sta $df1c,x
-	lda frame_header+11
+	lda frame_header+11,y
 	sta $df1e,x
 	lda #$81
 	sta $df11,x
@@ -240,6 +243,28 @@ waitdma:
 	inc $d024
 	lda $df00
 	bpl waitdma
+	rts
+
+check_ntsc:
+	lda #0
+	sta isntsc
+	sei
+@wait_top:
+	lda $d011
+	bmi @wait_top
+@wait_bottom:
+	lda $d011
+	bpl @wait_bottom
+@check_bottom_lines:
+	lda $d012
+	cmp #16
+	bcs @ispal
+	lda $d011
+	bmi @check_bottom_lines
+	inc isntsc
+	inc isntsc
+@ispal:
+	cli
 	rts
 
 
