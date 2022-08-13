@@ -203,26 +203,26 @@ exit_to_basic:
 	sta $00
 	lda #$0b
 	sta $d011
-	jsr $ff84
-	jsr $ff87
-	jsr $ff8a
-	jsr $ff81
 	ldx #@stub_size-1
 @copy_stub:
 	lda @stub,x
-	sta $1f0,x
+	sta $140,x
 	dex
 	bpl @copy_stub
 	lda #0
 	ldx #$37
 	ldy #%10100011
-	jmp $1f0
+	jmp $140
 
 @stub:
 	sty $de11
 	stx $01
 	tax
 	tay
+	jsr $ff84
+	jsr $ff87
+	jsr $ff8a
+	jsr $ff81
 	cli
 	jmp ($a000)
 
