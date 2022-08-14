@@ -263,3 +263,10 @@ Clock port access
 
 The clock port can be mapped to the range $DE02-$DE0F by writing 1 to
 $DE01.
+
+
+Soft reset
+----------
+
+The C64/C128 can be reset by writing $52 to $DE00.  This does _not_
+reset any DMA or MMC64 registers.

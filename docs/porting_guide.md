@@ -10,10 +10,10 @@ FPGA resource requirements
 
 ### Clock speed
 
-The design has been created for a system clock speed of 100 MHz.
+The design has been created for a system clock speed of 80-100 MHz.
 It can probably still work at much lower speeds, but the timing
-in `bus_manager` (and `chameleon_phi_clock`, if used) would need
-to be adjusted accordingly.
+in `bus_manager` (and `phi_recovery`, if used) would need to be
+adjusted accordingly.
 
 
 ### Number of logic elements
@@ -85,11 +85,12 @@ Level shifters should be added if required by the FPGA chip.
 
 128 Kbytes to 16 Mbytes of RAM is needed to back the external memory
 of the DMA channels.  In the Chameleon implementation this is
-implemented with an external SDRAM, but internal memory resources
-could also be used.  At least two memory ports (one read/write, one
-write only) are needed if the MMC64 function is desired, but accesses
-are allowed to take multiple cycles, and can thus be serialized if only
-one hardware port is available (as is the case with the SDRAM).
+implemented with an external SDRAM, and in the Orange Cartridge
+implementation by HyperRAM, but internal memory resources could also
+be used.  At least two memory ports (one read/write, one write only) are
+needed if the MMC64 function is desired, but accesses are allowed to
+take multiple cycles, and can thus be serialized if only one hardware
+port is available (as is the case with the SDRAM and HyperRAM).
 
 
 Optional peripherals
@@ -105,17 +106,21 @@ software and not needed by the sample application.
 
 ### SPI flash
 
-The Chameleon implementation loads the contents of the ROM from SPI flash
-on startup.  This is done to allow for convenient update of the ROM
-contents, but is not necessary at all.  Even if using the ROM functionality,
-the contents could be put into the FPGA bitstream using e.g. `$readmemh`.
+The Chameleon and Orange Cartridge implementations loads the contents of
+the ROM from SPI flash on startup.  This is done to allow for convenient
+update of the ROM contents, but is not necessary at all.  Even if using
+the ROM functionality, the contents could be put into the FPGA bitstream
+using e.g. `$readmemh`.
 
 
 ### LEDs and buttons
 
 The Chameleon implementation uses two LEDs to indicate init completion
 and SDcard activity, and two buttons to reset the C64 and the FPGA
-respectively.  This is completely optional.
+respectively.  The Orange Cartridge implementation uses the red and green
+channels of the RGB LED to indicate the same information as the
+Chameleon LEDs, and the single button to reset the C64.  All this is
+completely optional.
 
 
 RTL modules
@@ -349,6 +354,9 @@ A dummy register file example for adding new functionality.
 * `write_strobe` - Connect to `addres_decoder`
 * `clockport_enable` - Set to 1 if the first write to $DE01 has the LSB set
                        (RR compatibility)
+* `soft_reset` - This output is asserted for 255 system clock cycles after
+                 the magic value `$52` is written to $DE00.  This can be
+                 used to implement a software controlled reset signal.
 
 
 ### cart_bram
@@ -411,6 +419,9 @@ deasserted again.
   from the C64 expansion port.  In order to prevent feedback loops, this
   input reacts only to a falling edge.
 * `int_reset` - A synchronous input which will trigger a warm reset when 1
+* `soft_reset` - When this input is asserted, a falling edge on `ext_reset_n`
+  does not trigger an internal reset.  This allows resetting of the C64
+  without resetting the super-reu core.
 * `reset` - Reset output
 
 
