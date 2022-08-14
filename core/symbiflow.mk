@@ -80,8 +80,8 @@ ifeq ($(TARGET),orangecart)
 flash: $(BIT_FILE) $(ROM_FILE)
 	cp $(BIT_FILE) $O/core.dfu
 	cp $(ROM_FILE) $O/rom.dfu
-	dfu-suffix -v 1209 -p 000c -a $O/core.dfu
-	dfu-suffix -v 1209 -p 000c -a $O/rom.dfu
+	dfu-suffix -v 1209 -p 5a0c -a $O/core.dfu
+	dfu-suffix -v 1209 -p 5a0c -a $O/rom.dfu
 	dfu-util -a 0 -D $O/core.dfu
 	dfu-util -R -a 1 -D $O/rom.dfu
 
