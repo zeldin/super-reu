@@ -1,9 +1,11 @@
-TARGET ?= chameleon2
-
 chameleon2_MAKEFILE := quartus.mk
 orangecart_MAKEFILE := symbiflow.mk
 
 .DEFAULT_GOAL:=dummy
+
+ifeq ($(TARGET),)
+$(error TARGET must be set)
+endif
 
 ifeq ($($(TARGET)_MAKEFILE),)
 $(error Unknown target $(TARGET))
