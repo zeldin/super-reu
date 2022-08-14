@@ -67,6 +67,13 @@ carderror:
 @waitinsert:
 	jsr checkcardmmc64
 	bne @waitinsert
+	ldx #50
+	ldy #0
+@insertion_delay:
+	dey
+	bne @insertion_delay
+	dex
+	bne @insertion_delay
 
 fileselector:
 	jsr clear_screen
