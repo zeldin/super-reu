@@ -28,15 +28,17 @@ or 160x200 in multicolor) at 50 fps and sampled sound at 16 kHz from an
 sdcard.
 
 
-Chameleon v2 top level design
------------------------------
+Chameleon v2 and Orange Cartridge top level design
+--------------------------------------------------
 
 While the DMA engine and MMC64 modules are not tied to any specific FPGA
-solution, this repository contains a top level design integrating the
-modules onto the Chameleon v2 hardware.  Although the super-reu does not
-depend on any address decoder PLA tricks, and thus should work fine
-in a C128, note that the default core of the Chameleon v2 does use
-such tricks and thus it is not safe to use it in a C128.
+solution, this repository contains two top level designs integrating the
+modules onto the Chameleon v2 and Orange Cartridge hardware, respectively.
+Although the super-reu does not depend on any address decoder PLA tricks,
+and thus should work fine in a C128, note that the default core of the
+Chameleon v2 does use such tricks and thus it is not safe to use it in
+a C128.  Using the super-reu with the Orange Cartridge poses no such
+problem.
 
 The Chameleon v2 top level design does not support the VGA port or 3.5mm
 stereo-audio plug on the Chameleon.  Please use the DIN video connector
@@ -46,6 +48,8 @@ or RF output on the C64 for audio and video connection.
 Prerequisites
 -------------
 
+### Chameleon v2
+
 To build the movie player demonstrator for Chameleon v2, the
 following is needed:
 
@@ -53,13 +57,27 @@ following is needed:
 - [cc65 development package](https://cc65.github.io/)
 
 
+### Orange Cartridge
+
+To build the movie player demonstrator for the Orange Cartridge, the
+following is needed:
+
+- [Project Trellis](https://github.com/YosysHQ/prjtrellis)
+- [nextpnr](https://github.com/YosysHQ/nextpnr) with ECP5 support enabled
+- [yosys](https://github.com/YosysHQ/yosys)
+- [cc65 development package](https://cc65.github.io/)
+
+
 Building and installing
 -----------------------
 
-To build the movie player demonstrator and m64conv tool, run
+### Chameleon v2
+
+To build the movie player demonstrator for Chameleon v2 and
+m64conv tool, run
 
 ```
-make QUARTUS_SH=/path/to/quartus_sh
+make TARGET=chameleon2 QUARTUS_SH=/path/to/quartus_sh
 ```
 
 specifying the correct path to `quartus_sh` in your Quartus installation
@@ -70,9 +88,30 @@ If everything goes well, the core and ROM can be flashed on Chameleon v2
 using
 
 ```
-make SLOT=n flash
+make TARGET=chameleon2 SLOT=n flash
 ```
 
 If no `SLOT` is specified, slot 2 will be used.  `chacocmd` must be
 present in the executable path.
 
+
+### Orange Cartridge
+
+To build the movie player demonstrator for Orange Cartridge and
+m64conv tool, run
+
+```
+make TARGET=orangecart
+```
+
+`yosys`, `nextpnr-ecp5` and `ecppack`, as well as `ca65` and `ld65` need
+to be present in the executable path.
+
+If everything goes well, the core and ROM can be flashed on the Orange
+Cartridge using
+
+```
+make TARGET=orangecart flash
+```
+
+`dfu-util` and `dfu-suffix` must be present in the executable path.
