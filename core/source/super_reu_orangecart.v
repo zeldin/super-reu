@@ -251,7 +251,7 @@ module orangecart (
 		   .rwds_in(hyper_rwds_q), .rwds_out(hyper_rwds_d),
 		   .dq_in(hyper_dq_q), .dq_out(hyper_dq_d));
 
-   ecp5_hyperphy #(.CLK_HZ(80000000))
+   ecp5_hyperphy #(.CLK_HZ(80000000), .PHASE_TWEAK(-4))
      hyperphy(.clk(sysclk), .reset(reset),
 	      .clk_enable(hyper_ck), .pll_locked(hyper_lock),
 	      .rwds_da(hyper_rwds_d[1]), .rwds_db(hyper_rwds_d[0]),

@@ -57,10 +57,11 @@ module ecp5_hyperphy (input clk,
 		      inout [7:0] dq);
 
    parameter CLK_HZ = 100000000;
+   parameter PHASE_TWEAK = 0;
 
    localparam CLK_DIV = 550000000 / CLK_HZ;
    localparam OP_PHASE_X8 = CLK_DIV * 4;
-   localparam OS_PHASE_X8 = CLK_DIV * 6;
+   localparam OS_PHASE_X8 = CLK_DIV * 6 + PHASE_TWEAK;
 
    generate
       if (CLK_DIV > 128)
