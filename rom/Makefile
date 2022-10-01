@@ -9,6 +9,7 @@ OBJS =  $(OBJDIR)/entry.o
 OBJS += $(OBJDIR)/player.o
 OBJS += $(OBJDIR)/stream.o
 OBJS += $(OBJDIR)/fileselector.o
+OBJS += $(OBJDIR)/loader.o
 OBJS += $(OBJDIR)/fileindexer.o
 OBJS += $(OBJDIR)/index.o
 OBJS += $(OBJDIR)/screen.o

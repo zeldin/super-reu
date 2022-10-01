@@ -6,7 +6,7 @@
 
 	.import deselectmmc64, selectmmc64, stopcmd
 
-	.import fileselector, movie_player
+	.import fileselector, movie_player, loader
 
 
 	.zeropage
@@ -97,6 +97,9 @@ start:
 	scrcode "Press 1 for movie player@"
 	jsr nextrow
 	jsr printtext
+	scrcode "Press 2 to load program from SDcard@"
+	jsr nextrow
+	jsr printtext
 	scrcode "Press Q to quit into BASIC@"
 	jsr nextrow
 	lda isc128
@@ -120,12 +123,18 @@ wait_here:
 	bcc go128
 	lsr
 	lsr
+	bcc @sdload
 	lsr
 	lsr
 	lsr
 	bcc exit_to_basic
 	jmp wait_here
 
+@sdload:
+	jsr fileselector
+	jsr loader
+	jmp start
+	
 @next_movie:
 	lda #0
 	sta $d020
