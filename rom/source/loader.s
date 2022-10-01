@@ -5,13 +5,20 @@
 
 	.import initstream, getstreamdata
 
-	.importzp vreg
+	.importzp vreg, vscrn
 
 vartab = $2d
 ndx = $c6
 keyd = $277
 
 loader:
+	sec
+	sbc #2
+	sta vscrn
+	bcs @nowrap
+	dex
+@nowrap:
+	stx vscrn+1
 	ldx #0
 	stx $df04
 	stx $df05
@@ -42,10 +49,10 @@ loader:
 	sta $df02
 	lda vreg+1
 	sta $df03
-	lda #$fe
+	lda vscrn
 	sta $df07
-	dex
-	stx $df08
+	lda vscrn+1
+	sta $df08
 	lda #$81
 	sta $df01
 

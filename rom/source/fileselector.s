@@ -30,6 +30,10 @@ cluster3:	.res	files_per_page
 blocks_high:	.res	files_per_page
 blocks_mid:	.res	files_per_page
 blocks_low:	.res	files_per_page
+size_low:	.res	files_per_page
+size_high:	.res	files_per_page
+	; upper 16 bits of file size not needed, as it can be
+	; computed from the number of blocks if needed
 	
 filename:	.res	27
 
@@ -228,10 +232,12 @@ next_page:
 	ror
 	sta blocks_mid,x
 	lda direntry+29
+	sta size_high,x
 	ror
 	sta blocks_low,x
-	bcs @residue
 	lda direntry+28
+	sta size_low,x
+	bcs @residue
 	beq @noresidue
 @residue:
 	inc blocks_low,x
@@ -397,6 +403,10 @@ selection:
 	jsr fatfs_open_subdir
 	jmp next_dir
 @regular_file:
+	lda size_low,x
+	pha
+	lda size_high,x
+	pha
 	lda blocks_low,x
 	pha
 	lda blocks_mid,x
@@ -418,7 +428,11 @@ selection:
 	pla
 	tax
 	pla
-	jmp index_file
+	jsr index_file
+	pla
+	tax
+	pla
+	rts
 
 
 colorize:
