@@ -41,6 +41,7 @@ initmmc64:
 	lda $de11	;pull card chip select line down for SPI communication
 	and #%11111101
 	sta $de11
+	jsr idlegap
 	ldy #$06		;we send 6 command bytes to the card
 @mmc64resetloop:
 	lda @resetcmd-1,y	;grab command byte
@@ -63,6 +64,7 @@ initmmc64:
 	bcs @leave
 
 @done:
+	jsr idlegap
 	ldy #$06		;try to send CMD8
 @sendifcondloop:	
 	lda @sendifcondcmd-1,y	;grab command byte
@@ -290,7 +292,9 @@ blockreadcmd:
 	;; X - out: $ff
 	;; Y - preserved
 mmc64cmdparamblk:
-	ldx #$ff
+	pha
+	jsr idlegap		;leaves $ff in X
+	pla
 	sta $de10
 	lda sdtype
 	cmp #3
@@ -329,7 +333,9 @@ mmc64cmdparamblk:
 	;; X - out: $ff
 	;; Y - in: parameter byte, preserved
 mmc64cmdparam1:
-	ldx #$ff
+	pha
+	jsr idlegap		;leaves $ff in X
+	pla
 	sta $de10
 	sty $de10
 	inx
@@ -340,7 +346,9 @@ mmc64cmdparam1:
 	;; X - out: $ff
 	;; Y - preserved
 mmc64cmd:
-	ldx #$ff
+	pha
+	jsr idlegap		;leaves $ff in X
+	pla
 	sta $de10
 	inx
 	stx $de10
@@ -365,6 +373,38 @@ mmc64cmdcommon2:
 	lda $de10
 @gotr1:	
 	rts
+
+	;; Send eight idle bytes: 64 clock pulses with MOSI held high.
+	;;
+	;; The SD specification calls the gap between a response and the next
+	;; command N_RC and requires at least one byte of it.
+	;;
+	;; Eight rather than one because some cards want more. Given too
+	;; small a gap a 128 GB SanDisk answers CMD8 with a single driven bit
+	;; and then stops driving MISO, which reads back as $7F and looks
+	;; like a card that has failed. What such a card is waiting for is
+	;; clock pulses and not elapsed time, so a delay will not serve
+	;; instead. Eight bytes cost 256 us at 250 kHz and 8 us at 8 MHz.
+	;;
+	;; A - clobbered
+	;; X - out: $ff
+	;; Y - preserved
+idlegap:
+	ldx #7			;counted down to $ff, which is what the
+@gapwait:			;caller want in X
+	lda $de12		;a store that lands while a transfer is still
+	and #$01		;in flight is dropped, so wait first
+	bne @gapwait
+	lda #$ff
+	sta $de10
+	dex
+	bpl @gapwait
+@gaplast:
+	lda $de12		;and let the last one finish, so that the
+	and #$01		;caller's command byte is not the one dropped
+	bne @gaplast
+	rts
+
 
 	;; Check if card present
 	;; A - scratch
