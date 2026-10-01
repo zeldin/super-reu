@@ -23,6 +23,14 @@ module address_decoder(
    // will be 0xff.  If multiple apertures match, all relevant strobes
    // will fire and read_data will be the AND of all relevant read_datas
 
+   // The responses are ANDed together through a chain running from the last
+   // device down to the first. Keeping the chain in one vector at module
+   // level, rather than assigning into each generate block from outside,
+   // avoids a hierarchical reference that newer yosys rejects when implicit
+   // net declarations are disabled.
+   wire [(D*(devices+1)-1):0] chain;
+   assign chain[(devices*D) +: D] = {D{1'b1}};
+
    genvar dev;
    generate
       for (dev=0; dev<devices; dev=dev+1) begin : DEVICE
@@ -36,18 +44,11 @@ module address_decoder(
 	 assign read_strobes[dev] = read_strobe & chip_select;
 	 assign write_strobes[dev] = write_strobe & chip_select;
 
-	 wire [(D-1):0] read_data_in;
-	 wire [(D-1):0] read_data_out;
-	 assign read_data_out = (read_datas[(dev*D+D-1):(dev*D)] | {D{~chip_select}}) & read_data_in;
+	 assign chain[(dev*D) +: D] = (read_datas[(dev*D) +: D] |
+				       {D{~chip_select}}) & chain[((dev+1)*D) +: D];
       end // block: DEVICE
    endgenerate
 
-   generate
-      for (dev=1; dev<devices; dev=dev+1) begin : CHAINING
-	 assign DEVICE[dev-1].read_data_in = DEVICE[dev].read_data_out;
-      end
-   endgenerate
-   assign DEVICE[devices-1].read_data_in = {D{1'b1}};
-   assign read_data = DEVICE[0].read_data_out;
+   assign read_data = chain[0 +: D];
 
 endmodule // address_decoder

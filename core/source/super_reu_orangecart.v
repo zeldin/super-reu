@@ -154,7 +154,8 @@ module orangecart (
 
    wire        sck;
 
-   USRMCLK mclk(.USRMCLKI(sck), .USRMCLKTS(1'b0), .USRMCLKO());
+   // USRMCLKO was dropped from the primitive's port list in newer yosys
+   USRMCLK mclk(.USRMCLKI(sck), .USRMCLKTS(1'b0));
 
    generic_spi_master
      #(.clk_speed(80), .sck_speed(20))
