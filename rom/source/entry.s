@@ -7,7 +7,7 @@
 
 	.import deselectmmc64, selectmmc64, stopcmd
 
-	.import fileselector, movie_player, loader
+	.import fileselector, show_all, movie_player, loader
 
 
 	.zeropage
@@ -124,7 +124,7 @@ start:
 wait_here:	
 	lda $dc01
 	lsr
-	bcc @next_movie
+	bcc @movies
 	lsr
 	bcc go128
 	lsr
@@ -133,14 +133,21 @@ wait_here:
 	lsr
 	lsr
 	lsr
-	bcc exit_to_basic
-	jmp wait_here
+	bcs wait_here
+	jmp exit_to_basic
 
+	;; The file selector lists only what can be opened, each time it is
+	;; entered from here. Between movies it comes back the way F left it.
 @sdload:
+	lda #0
+	sta show_all
 	jsr fileselector
 	jsr loader
 	jmp start
 	
+@movies:
+	lda #0
+	sta show_all
 @next_movie:
 	lda #0
 	sta $d020

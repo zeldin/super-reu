@@ -2,7 +2,7 @@
 	.macpack cbm
 	.include "screen.inc"
 
-	.export fileselector
+	.export fileselector, show_all
 
 	.import index_file
 	
@@ -29,6 +29,7 @@ ACT_UP		= 3
 ACT_DOWN	= 4
 ACT_LEFT	= 5
 ACT_RIGHT	= 6
+ACT_FILTER	= 7
 DEBOUNCE	= 2		; held this long before it counts: 40 ms
 REPEAT		= 25		; a move held this long starts repeating
 RATE		= 4		; ...and repeats this often
@@ -49,6 +50,11 @@ size_high:	.res	files_per_page
 	; computed from the number of blocks if needed
 	
 filename:	.res	27
+
+	;; Zero to list only the ones the menu can open, which is the
+	;; default. Set by the caller, so that it can hold while the
+	;; selector comes back after a movie; F flips it.
+show_all:	.res	1
 
 entry_num:	.res	1
 entry_cnt:	.res	1
@@ -216,6 +222,8 @@ next_page:
 	jmp @next_entry
 @not_longfile:
 	jsr shortfilename
+	jsr listed
+	bcs @next_entry
 	lda tmp_skip_cnt
 	ora tmp_skip_cnt+1
 	bne @skip_entry
@@ -310,16 +318,18 @@ next_page:
 	lda #5+files_per_page
 	jsr setrow
 	jsr drawline
+	jsr showfilter
 	lda entry_cnt
 	bne selection
+	;; Nothing to choose, but the keys still work: F can show what the
+	;; filter hid, and the back key leaves. There is nothing to highlight
+	;; and invert_line leaves it off.
 	lda #4+(files_per_page/2)
 	jsr setrow
 	ldy #10
 	jsr printtext
 	scrcode "No files@"
-@nofiles:
-	jsr checkcardmmc64
-	beq @nofiles
+	jmp selection
 cardremoved:	
 	jmp fileselector
 
@@ -386,14 +396,22 @@ selection:
 	pha
 	jsr invert_line			; the highlight off; @donekey puts it back
 	pla
-	cmp #ACT_RETURN
-	bne @notreturn
-	jmp @return
-@notreturn:
+	cmp #ACT_FILTER
+	bne @notfilter
+	jmp @filter
+@notfilter:
 	cmp #ACT_BACK
 	bne @notback
 	jmp @back
 @notback:
+	ldx entry_cnt			; nothing listed: nothing to move to
+	bne @hasentries			; or open
+	jmp @nokey
+@hasentries:
+	cmp #ACT_RETURN
+	bne @notreturn
+	jmp @return
+@notreturn:
 	cmp #ACT_UP
 	beq @up
 	cmp #ACT_LEFT
@@ -447,6 +465,14 @@ selection:
 	dec skip_cnt+1
 @doneleft:
 	jmp next_page
+
+	;; F: list every file, or only the ones that can be opened. Back to
+	;; the first page, since which files are on which page has changed.
+@filter:
+	lda show_all
+	eor #1
+	sta show_all
+	jmp next_dir
 
 	;; The top left key: up a level, as choosing ".." does. The parent is
 	;; whatever the ".." entry of this directory points at, so read through
@@ -548,7 +574,7 @@ nextframe:
 	;;
 	;;   row 0  RETURN, CRSR right/left, CRSR down/up
 	;;   row 1  W, A, S, and the left SHIFT
-	;;   row 2  D
+	;;   row 2  D, and F, which shows or hides what cannot be opened
 	;;   row 6  the right SHIFT
 	;;   row 7  the top left key, which goes up a level like ".."
 	;;
@@ -599,6 +625,12 @@ readaction:
 	lda #ACT_BACK
 	rts
 @notback:
+	lda krow2
+	and #$20			; F
+	bne @notfilter
+	lda #ACT_FILTER
+	rts
+@notfilter:
 	lda krow1
 	and #$02			; W
 	beq @up
@@ -636,6 +668,66 @@ readaction:
 	rts
 @none:
 	lda #ACT_NONE
+	rts
+
+	;; Whether the entry just read goes in the list: carry clear if it
+	;; does. Directories and the volume label always do; a file does if
+	;; the menu can open it, a program or a movie by its extension, or if
+	;; F has asked for everything. This goes by the short name's
+	;; extension, in the raw upper case ASCII FAT keeps it in; ca65 would
+	;; turn a quoted 'P' into PETSCII.
+	;; X - preserved
+	;; Y - preserved
+listed:
+	lda show_all
+	bne @yes
+	lda direntry+11
+	and #$18			; a directory or the volume label
+	bne @yes
+	lda direntry+8
+	cmp #$50			; P
+	bne @notprg
+	lda direntry+9
+	cmp #$52			; R
+	bne @no
+	lda direntry+10
+	cmp #$47			; G
+	bne @no
+@yes:
+	clc
+	rts
+@notprg:
+	cmp #$4d			; M
+	bne @no
+	lda direntry+9
+	cmp #$36			; 6
+	bne @no
+	lda direntry+10
+	cmp #$34			; 4
+	beq @yes
+@no:
+	sec
+	rts
+
+	;; Row 22, under the list: what F will do. Drawn with the list.
+showfilter:
+	lda #22
+	jsr setrow
+	jsr clearline
+	jsr printtext
+	key "F"
+	scrcode " to @"
+	lda show_all
+	bne @hide
+	jsr printtext
+	scrcode "show@"
+	jmp @what
+@hide:
+	jsr printtext
+	scrcode "hide@"
+@what:
+	jsr printtext
+	scrcode " unsupported files@"
 	rts
 
 colorize:
@@ -686,6 +778,8 @@ setlinecolor:
 	rts
 
 invert_line:
+	lda entry_cnt
+	beq @noentry			; "No files": nothing to highlight
 	clc
 	lda entry_num
 	adc #5
@@ -697,6 +791,7 @@ invert_line:
 	sta (vscrn),y
 	dey
 	bpl @invertloop
+@noentry:
 	rts
 
 ascii2screen:	
