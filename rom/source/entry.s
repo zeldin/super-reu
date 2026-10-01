@@ -1,5 +1,6 @@
 
 	.macpack cbm
+	.include "screen.inc"
 
 	.import init_screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vreg
@@ -94,22 +95,27 @@ start:
 	lda #3
 	jsr setrow
 	jsr printtext
-	scrcode "Press 1 for movie player@"
+	key "1"
+	scrcode " for movie player@"
 	jsr nextrow
 	jsr printtext
-	scrcode "Press 2 to load program from SDcard@"
+	key "2"
+	scrcode " to load program from SDcard@"
 	jsr nextrow
 	jsr printtext
-	scrcode "Press Q to quit into BASIC@"
+	key "Q"
+	scrcode " to quit into BASIC@"
 	jsr nextrow
 	lda isc128
 	beq @noprompt128
 	jsr printtext
-	scrcode "Press ",$5f," to enter C128 mode@"
+	key $5f
+	scrcode " to enter C128 mode@"
 	jsr nextrow
 @noprompt128:
 	jsr printtext
-	scrcode "RESTORE returns to this screen@"
+	key "RESTORE"
+	scrcode " returns to this screen@"
 	
 	lda #$1b
 	sta $d011

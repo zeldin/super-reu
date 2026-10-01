@@ -1,5 +1,6 @@
 
 	.macpack cbm
+	.include "screen.inc"
 
 	.export fileselector
 
@@ -158,7 +159,11 @@ fileselector:
 	lda #23
 	jsr setrow
 	jsr printtext
-	scrcode "Navigate with CRSR, select with RETURN@"
+	scrcode "Navigate with "
+	key "CRSR"
+	scrcode ", select with "
+	key "RETURN"
+	scrcode "@"
 
 	jsr fatfs_open_rootdir
 next_dir:
