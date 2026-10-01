@@ -2,7 +2,7 @@
 	.macpack cbm
 	.include "screen.inc"
 
-	.export fileselector, show_all
+	.export fileselector, show_all, file_is_movie
 
 	.import index_file
 	
@@ -50,6 +50,10 @@ size_high:	.res	files_per_page
 	; computed from the number of blocks if needed
 	
 filename:	.res	27
+
+	;; Non-zero when the file just chosen is a movie, which is what the menu
+	;; goes by to hand it to the player rather than the loader.
+file_is_movie:	.res	1
 
 	;; Zero to list only the ones the menu can open, which is the
 	;; default. Set by the caller, so that it can hold while the
@@ -288,7 +292,21 @@ next_page:
 	bne @noresidue
 	inc blocks_high,x
 @noresidue:
+	;; A movie is an .M64, by the short name's extension as listed checks
+	;; it. Bit 6 of the attributes is reserved in FAT and never set on a
+	;; file, so it can carry the answer with the rest.
 	lda direntry+11
+	ldy direntry+8
+	cpy #$4d		; M
+	bne @notmovie
+	ldy direntry+9
+	cpy #$36		; 6
+	bne @notmovie
+	ldy direntry+10
+	cpy #$34		; 4
+	bne @notmovie
+	ora #$40
+@notmovie:
 	sta file_flags,x
 	jsr colorize
 	jsr nextrow
@@ -528,6 +546,9 @@ selection:
 	jsr fatfs_open_subdir
 	jmp next_dir
 @regular_file:
+	lda file_flags,x
+	and #$40
+	sta file_is_movie
 	lda size_low,x
 	pha
 	lda size_high,x

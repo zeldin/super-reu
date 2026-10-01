@@ -7,12 +7,16 @@
 
 	.import deselectmmc64, selectmmc64, stopcmd
 
-	.import fileselector, show_all, movie_player, loader
+	.import fileselector, show_all, file_is_movie, movie_player, loader
 
 
 	.zeropage
 
 isc128:	.res 1
+
+	.bss
+
+filesize:	.res 2
 	
 	.code
 	
@@ -96,11 +100,7 @@ start:
 	jsr setrow
 	jsr printtext
 	key "1"
-	scrcode " for movie player@"
-	jsr nextrow
-	jsr printtext
-	key "2"
-	scrcode " to load program from SDcard@"
+	scrcode " to load a program or movie@"
 	jsr nextrow
 	jsr printtext
 	key "Q"
@@ -124,40 +124,46 @@ start:
 wait_here:	
 	lda $dc01
 	lsr
-	bcc @movies
+	bcc file_go		; 1
 	lsr
 	bcc go128
 	lsr
 	lsr
-	bcc @sdload
 	lsr
 	lsr
 	lsr
 	bcs wait_here
-	jmp exit_to_basic
+	jmp exit_to_basic	; Q
 
-	;; The file selector lists only what can be opened, each time it is
-	;; entered from here. Between movies it comes back the way F left it.
-@sdload:
+	;; One key for both movies and programs: the file selector says
+	;; whether the file chosen is an .M64, and that decides who gets it.
+	;; After a movie the selector comes back for the next one. The loader
+	;; does not come back: it starts the program.
+	;;
+	;; The selector lists only what can be opened each time it is entered
+	;; from here. Between movies it comes back the way F left it.
+file_go:
 	lda #0
 	sta show_all
-	jsr fileselector
-	jsr loader
-	jmp start
-	
-@movies:
-	lda #0
-	sta show_all
-@next_movie:
+@again:
 	lda #0
 	sta $d020
 	jsr fileselector
+	sta filesize
+	stx filesize+1
+	lda file_is_movie
+	beq @program
 	jsr movie_player
 	jsr init_screen
 	jsr clear_screen
 	lda #$1b
 	sta $d011
-	jmp @next_movie
+	jmp @again
+@program:
+	lda filesize
+	ldx filesize+1
+	jsr loader
+	jmp start
 
 go128:
 	lda isc128
