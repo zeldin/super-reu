@@ -1,17 +1,22 @@
 
 	.macpack cbm
+	.include "screen.inc"
 
 	.import init_screen, clear_screen, setrow, nextrow, printtext, printhex
 	.importzp vreg
 
 	.import deselectmmc64, selectmmc64, stopcmd
 
-	.import fileselector, movie_player, loader
+	.import fileselector, show_all, file_is_movie, movie_player, loader
 
 
 	.zeropage
 
 isc128:	.res 1
+
+	.bss
+
+filesize:	.res 2
 	
 	.code
 	
@@ -94,22 +99,23 @@ start:
 	lda #3
 	jsr setrow
 	jsr printtext
-	scrcode "Press 1 for movie player@"
+	key "1"
+	scrcode " to load a program or movie@"
 	jsr nextrow
 	jsr printtext
-	scrcode "Press 2 to load program from SDcard@"
-	jsr nextrow
-	jsr printtext
-	scrcode "Press Q to quit into BASIC@"
+	key "Q"
+	scrcode " to quit into BASIC@"
 	jsr nextrow
 	lda isc128
 	beq @noprompt128
 	jsr printtext
-	scrcode "Press ",$5f," to enter C128 mode@"
+	key $5f
+	scrcode " to enter C128 mode@"
 	jsr nextrow
 @noprompt128:
 	jsr printtext
-	scrcode "RESTORE returns to this screen@"
+	key "RESTORE"
+	scrcode " returns to this screen@"
 	
 	lda #$1b
 	sta $d011
@@ -118,33 +124,46 @@ start:
 wait_here:	
 	lda $dc01
 	lsr
-	bcc @next_movie
+	bcc file_go		; 1
 	lsr
 	bcc go128
 	lsr
 	lsr
-	bcc @sdload
 	lsr
 	lsr
 	lsr
-	bcc exit_to_basic
-	jmp wait_here
+	bcs wait_here
+	jmp exit_to_basic	; Q
 
-@sdload:
-	jsr fileselector
-	jsr loader
-	jmp start
-	
-@next_movie:
+	;; One key for both movies and programs: the file selector says
+	;; whether the file chosen is an .M64, and that decides who gets it.
+	;; After a movie the selector comes back for the next one. The loader
+	;; does not come back: it starts the program.
+	;;
+	;; The selector lists only what can be opened each time it is entered
+	;; from here. Between movies it comes back the way F left it.
+file_go:
+	lda #0
+	sta show_all
+@again:
 	lda #0
 	sta $d020
 	jsr fileselector
+	sta filesize
+	stx filesize+1
+	lda file_is_movie
+	beq @program
 	jsr movie_player
 	jsr init_screen
 	jsr clear_screen
 	lda #$1b
 	sta $d011
-	jmp @next_movie
+	jmp @again
+@program:
+	lda filesize
+	ldx filesize+1
+	jsr loader
+	jmp start
 
 go128:
 	lda isc128
