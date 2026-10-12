@@ -1,7 +1,8 @@
 
 	.macpack cbm
+	.include "screen.inc"
 
-	.export fileselector
+	.export fileselector, show_all, file_is_movie
 
 	.import index_file
 	
@@ -20,6 +21,19 @@
 
 files_per_page = 16
 
+	;; What the keys can ask for, and the timing of it, in frames.
+ACT_NONE	= 0
+ACT_RETURN	= 1
+ACT_BACK	= 2
+ACT_UP		= 3
+ACT_DOWN	= 4
+ACT_LEFT	= 5
+ACT_RIGHT	= 6
+ACT_FILTER	= 7
+DEBOUNCE	= 2		; held this long before it counts: 40 ms
+REPEAT		= 25		; a move held this long starts repeating
+RATE		= 4		; ...and repeats this often
+
 	.bss
 
 file_flags:	.res	files_per_page
@@ -37,10 +51,30 @@ size_high:	.res	files_per_page
 	
 filename:	.res	27
 
+	;; Non-zero when the file just chosen is a movie, which is what the menu
+	;; goes by to hand it to the player rather than the loader.
+file_is_movie:	.res	1
+
+	;; Zero to list only the ones the menu can open, which is the
+	;; default. Set by the caller, so that it can hold while the
+	;; selector comes back after a movie; F flips it.
+show_all:	.res	1
+
 entry_num:	.res	1
 entry_cnt:	.res	1
-key:		.res	1
-oldkey:		.res	1
+	;; The keyboard, as the selection loop sees it: what the keys held now
+	;; ask for, how many frames that has been so, and whether a press
+	;; counts. See readaction and the loop after selection.
+lastact:	.res	1
+steady:		.res	1
+armed:		.res	1
+acted:		.res	1
+krow0:		.res	1
+krow1:		.res	1
+krow2:		.res	1
+krow6:		.res	1
+krow7:		.res	1
+kshift:		.res	1
 skip_cnt:	.res	2
 tmp_skip_cnt:	.res	2
 longfile_status:.res	1
@@ -81,8 +115,14 @@ carderror:
 
 fileselector:
 	jsr clear_screen
+	;; Nothing counts until every key has been seen up. Whatever
+	;; chose this: a key in the menu, or RETURN on the last movie,
+	;; may still be down.
+	lda #$ff
+	sta lastact
 	lda #0
-	sta oldkey
+	sta armed
+	sta steady
 	jsr setrow
 	jsr printtext
 	scrcode "Checking SDCARD...@"
@@ -129,7 +169,11 @@ fileselector:
 	lda #23
 	jsr setrow
 	jsr printtext
-	scrcode "Navigate with CRSR, select with RETURN@"
+	scrcode "Navigate with "
+	key "CRSR"
+	scrcode ", select with "
+	key "RETURN"
+	scrcode "@"
 
 	jsr fatfs_open_rootdir
 next_dir:
@@ -182,6 +226,8 @@ next_page:
 	jmp @next_entry
 @not_longfile:
 	jsr shortfilename
+	jsr listed
+	bcs @next_entry
 	lda tmp_skip_cnt
 	ora tmp_skip_cnt+1
 	bne @skip_entry
@@ -246,7 +292,21 @@ next_page:
 	bne @noresidue
 	inc blocks_high,x
 @noresidue:
+	;; A movie is an .M64, by the short name's extension as listed checks
+	;; it. Bit 6 of the attributes is reserved in FAT and never set on a
+	;; file, so it can carry the answer with the rest.
 	lda direntry+11
+	ldy direntry+8
+	cpy #$4d		; M
+	bne @notmovie
+	ldy direntry+9
+	cpy #$36		; 6
+	bne @notmovie
+	ldy direntry+10
+	cpy #$34		; 4
+	bne @notmovie
+	ora #$40
+@notmovie:
 	sta file_flags,x
 	jsr colorize
 	jsr nextrow
@@ -276,16 +336,18 @@ next_page:
 	lda #5+files_per_page
 	jsr setrow
 	jsr drawline
+	jsr showfilter
 	lda entry_cnt
 	bne selection
+	;; Nothing to choose, but the keys still work: F can show what the
+	;; filter hid, and the back key leaves. There is nothing to highlight
+	;; and invert_line leaves it off.
 	lda #4+(files_per_page/2)
 	jsr setrow
 	ldy #10
 	jsr printtext
 	scrcode "No files@"
-@nofiles:
-	jsr checkcardmmc64
-	beq @nofiles
+	jmp selection
 cardremoved:	
 	jmp fileselector
 
@@ -297,44 +359,88 @@ selection:
 @nokey:
 	jsr checkcardmmc64
 	bne cardremoved
-	clc
-	rol $dc00
-	lda $dc01
-	ora #$79
-	sta key
-	sec
-	rol $dc00
-	lda $dc01
-	lsr
-	lsr
-	lsr
-	ora #$ef
-	and key
-	sta key
-	lda #$bf
-	sta $dc00
-	lda $dc01
-	ora #$ef
-	and key
-	sta key
-	sec
-	rol $dc00
-	cmp oldkey
-	beq @nokey
-	sta oldkey
-	jsr invert_line
-	lda #2
-	bit key
-	beq @return
-	lda #$10
-	bit key
-	beq @shift
-	lda #4
-	bit key
-	beq @right
-	lda #$80
-	bit key
-	bne @donekey
+	;; Once a frame, so that it behaves the same whatever the CPU speed,
+	;; and so that a frame is the unit everything below is counted in.
+	jsr nextframe
+	jsr readaction
+	cmp lastact
+	beq @steady
+	sta lastact
+	lda #0
+	sta steady
+	jmp @nokey
+@steady:
+	;; The same for another frame. It counts once it has held for
+	;; DEBOUNCE frames, which is what takes the chatter out of a press and
+	;; a release; held to REPEAT, a move up or down repeats every RATE.
+	inc steady
+	bne @counted
+	dec steady			; and stays at 255 rather than wrapping
+@counted:
+	lda steady
+	cmp #DEBOUNCE
+	beq @settled
+	cmp #REPEAT
+	bne @nokey
+	lda lastact			; only the move that was made when it
+	cmp acted			; settled: letting go of SHIFT first
+	bne @nokey			; turns up into down, and that must
+	cmp #ACT_UP			; not start moving the other way
+	beq @again
+	cmp #ACT_DOWN
+	bne @nokey
+@again:
+	lda #REPEAT-RATE
+	sta steady
+	lda lastact
+	jmp @act
+@settled:
+	lda lastact
+	bne @pressed
+	lda #1				; everything is up: the next press counts
+	sta armed
+	jmp @nokey
+@pressed:
+	;; Something settled. It counts only if everything has been up since
+	;; the last one: a change while keys are still down (SHIFT let go
+	;; before the cursor key, or one key of two released) is not a new
+	;; press.
+	ldx armed
+	beq @to_nokey
+	ldx #0
+	stx armed
+	sta acted
+@act:
+	pha
+	jsr invert_line			; the highlight off; @donekey puts it back
+	pla
+	cmp #ACT_FILTER
+	bne @notfilter
+	jmp @filter
+@notfilter:
+	cmp #ACT_BACK
+	bne @notback
+	jmp @back
+@notback:
+	ldx entry_cnt			; nothing listed: nothing to move to
+	bne @hasentries			; or open
+	jmp @nokey
+@hasentries:
+	cmp #ACT_RETURN
+	bne @notreturn
+	jmp @return
+@notreturn:
+	cmp #ACT_UP
+	beq @up
+	cmp #ACT_LEFT
+	bne @notleft
+	jmp @left
+@notleft:
+	cmp #ACT_RIGHT
+	bne @down
+	jmp @right
+@to_nokey:
+	jmp @nokey
 @down:
 	ldx entry_num
 	inx
@@ -348,7 +454,7 @@ selection:
 @right:
 	lda screen+(3*40)+29
 	cmp #' '
-	beq @donekey
+	beq @to_donekey
 	clc
 	lda skip_cnt
 	adc #files_per_page
@@ -357,13 +463,6 @@ selection:
 	inc skip_cnt+1
 @doneright:
 	jmp next_page
-@shift:
-	lda #4
-	bit key
-	beq @left
-	lda #$80
-	bit key
-	bne @to_donekey
 @up:
 	ldx entry_num
 	bne @okup
@@ -385,6 +484,48 @@ selection:
 @doneleft:
 	jmp next_page
 
+	;; F: list every file, or only the ones that can be opened. Back to
+	;; the first page, since which files are on which page has changed.
+@filter:
+	lda show_all
+	eor #1
+	sta show_all
+	jmp next_dir
+
+	;; The top left key: up a level, as choosing ".." does. The parent is
+	;; whatever the ".." entry of this directory points at, so read through
+	;; it for that; the root has none, and then nothing happens.
+@back:
+	jsr fatfs_rewind_dir
+@backscan:
+	jsr fatfs_next_dirent
+	bcs @noparent
+	lda direntry
+	beq @noparent			; the end of the directory
+	cmp #$2e			; "..", in the raw ASCII FAT keeps names in
+	bne @backscan
+	lda direntry+1
+	cmp #$2e
+	bne @backscan
+	lda direntry+2
+	cmp #$20
+	bne @backscan
+	lda direntry+11
+	and #$10
+	beq @backscan
+	lda direntry+26
+	sta cluster
+	lda direntry+27
+	sta cluster+1
+	lda direntry+20
+	sta cluster+2
+	lda direntry+21
+	sta cluster+3
+	jsr fatfs_open_subdir
+	jmp next_dir
+@noparent:
+	jmp next_page			; the same page again, read afresh
+
 @return:
 	ldx entry_num
 	lda cluster0,x
@@ -399,10 +540,15 @@ selection:
 	and #$18
 	beq @regular_file
 	and #$08
-	bne @to_donekey
+	beq @isdir
+	jmp @donekey			; the volume label: nothing to open
+@isdir:
 	jsr fatfs_open_subdir
 	jmp next_dir
 @regular_file:
+	lda file_flags,x
+	and #$40
+	sta file_is_movie
 	lda size_low,x
 	pha
 	lda size_high,x
@@ -434,6 +580,176 @@ selection:
 	pla
 	rts
 
+
+	;; Wait for the next frame
+nextframe:
+	lda $d011
+	bpl nextframe
+@low:
+	lda $d011
+	bmi @low
+	rts
+
+	;; What the keys held now ask for, as an ACT_ value in A. Each row of
+	;; the matrix with one of these keys in it is read once:
+	;;
+	;;   row 0  RETURN, CRSR right/left, CRSR down/up
+	;;   row 1  W, A, S, and the left SHIFT
+	;;   row 2  D, and F, which shows or hides what cannot be opened
+	;;   row 6  the right SHIFT
+	;;   row 7  the top left key, which goes up a level like ".."
+	;;
+	;; WASD and the cursor keys are the same moves; A and D, like the
+	;; horizontal cursor key, turn the page. More than one at once is
+	;; taken in the order below.
+readaction:
+	lda #%11111110
+	sta $dc00
+	lda $dc01
+	sta krow0
+	lda #%11111101
+	sta $dc00
+	lda $dc01
+	sta krow1
+	lda #%11111011
+	sta $dc00
+	lda $dc01
+	sta krow2
+	lda #%10111111
+	sta $dc00
+	lda $dc01
+	sta krow6
+	lda #%01111111			; row 7 last: it is what the menu
+	sta $dc00			; leaves selected
+	lda $dc01
+	sta krow7
+	lda #0
+	sta kshift
+	lda krow1
+	and #$80			; left SHIFT
+	beq @shifted
+	lda krow6
+	and #$10			; right SHIFT
+	bne @unshifted
+@shifted:
+	inc kshift
+@unshifted:
+	lda krow0
+	and #$02			; RETURN
+	bne @notreturn
+	lda #ACT_RETURN
+	rts
+@notreturn:
+	lda krow7
+	and #$02			; the top left key
+	bne @notback
+	lda #ACT_BACK
+	rts
+@notback:
+	lda krow2
+	and #$20			; F
+	bne @notfilter
+	lda #ACT_FILTER
+	rts
+@notfilter:
+	lda krow1
+	and #$02			; W
+	beq @up
+	lda krow1
+	and #$20			; S
+	beq @down
+	lda krow1
+	and #$04			; A
+	beq @left
+	lda krow2
+	and #$04			; D
+	beq @right
+	lda krow0
+	and #$80			; CRSR down, up with SHIFT
+	bne @noupdown
+	lda kshift
+	bne @up
+@down:
+	lda #ACT_DOWN
+	rts
+@up:
+	lda #ACT_UP
+	rts
+@noupdown:
+	lda krow0
+	and #$04			; CRSR right, left with SHIFT
+	bne @none
+	lda kshift
+	bne @left
+@right:
+	lda #ACT_RIGHT
+	rts
+@left:
+	lda #ACT_LEFT
+	rts
+@none:
+	lda #ACT_NONE
+	rts
+
+	;; Whether the entry just read goes in the list: carry clear if it
+	;; does. Directories and the volume label always do; a file does if
+	;; the menu can open it, a program or a movie by its extension, or if
+	;; F has asked for everything. This goes by the short name's
+	;; extension, in the raw upper case ASCII FAT keeps it in; ca65 would
+	;; turn a quoted 'P' into PETSCII.
+	;; X - preserved
+	;; Y - preserved
+listed:
+	lda show_all
+	bne @yes
+	lda direntry+11
+	and #$18			; a directory or the volume label
+	bne @yes
+	lda direntry+8
+	cmp #$50			; P
+	bne @notprg
+	lda direntry+9
+	cmp #$52			; R
+	bne @no
+	lda direntry+10
+	cmp #$47			; G
+	bne @no
+@yes:
+	clc
+	rts
+@notprg:
+	cmp #$4d			; M
+	bne @no
+	lda direntry+9
+	cmp #$36			; 6
+	bne @no
+	lda direntry+10
+	cmp #$34			; 4
+	beq @yes
+@no:
+	sec
+	rts
+
+	;; Row 22, under the list: what F will do. Drawn with the list.
+showfilter:
+	lda #22
+	jsr setrow
+	jsr clearline
+	jsr printtext
+	key "F"
+	scrcode " to @"
+	lda show_all
+	bne @hide
+	jsr printtext
+	scrcode "show@"
+	jmp @what
+@hide:
+	jsr printtext
+	scrcode "hide@"
+@what:
+	jsr printtext
+	scrcode " unsupported files@"
+	rts
 
 colorize:
 	and #$18
@@ -483,6 +799,8 @@ setlinecolor:
 	rts
 
 invert_line:
+	lda entry_cnt
+	beq @noentry			; "No files": nothing to highlight
 	clc
 	lda entry_num
 	adc #5
@@ -494,6 +812,7 @@ invert_line:
 	sta (vscrn),y
 	dey
 	bpl @invertloop
+@noentry:
 	rts
 
 ascii2screen:	

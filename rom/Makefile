@@ -22,6 +22,9 @@ all : $(OBJDIR)/super_reu.bin
 $(OBJDIR)/%.o : $(SRCDIR)/%.s | $(OBJDIR)
 	$(CA65) -o $@ $<
 
+# The sources that include screen.inc, for its key macro.
+$(OBJDIR)/entry.o $(OBJDIR)/fileselector.o : $(SRCDIR)/screen.inc
+
 $(OBJDIR)/super_reu.bin : $(OBJS)
 	$(LD65) -o $@ -m $@.map -C $(SRCDIR)/ld.cfg $^
 
