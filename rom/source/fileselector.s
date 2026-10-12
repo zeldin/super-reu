@@ -2,7 +2,7 @@
 	.macpack cbm
 	.include "screen.inc"
 
-	.export fileselector, show_all, file_is_movie
+	.export fileselector, show_all
 
 	.import index_file
 	
@@ -50,10 +50,6 @@ size_high:	.res	files_per_page
 	; computed from the number of blocks if needed
 	
 filename:	.res	27
-
-	;; Non-zero when the file just chosen is a movie, which is what the menu
-	;; goes by to hand it to the player rather than the loader.
-file_is_movie:	.res	1
 
 	;; Zero to list only the ones the menu can open, which is the
 	;; default. Set by the caller, so that it can hold while the
@@ -548,7 +544,7 @@ selection:
 @regular_file:
 	lda file_flags,x
 	and #$40
-	sta file_is_movie
+	php
 	lda size_low,x
 	pha
 	lda size_high,x
@@ -578,6 +574,7 @@ selection:
 	pla
 	tax
 	pla
+	plp
 	rts
 
 

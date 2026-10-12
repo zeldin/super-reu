@@ -7,16 +7,13 @@
 
 	.import deselectmmc64, selectmmc64, stopcmd
 
-	.import fileselector, show_all, file_is_movie, movie_player, loader
+	.import fileselector, show_all, movie_player, loader
 
 
 	.zeropage
 
 isc128:	.res 1
 
-	.bss
-
-filesize:	.res 2
 	
 	.code
 	
@@ -149,9 +146,6 @@ file_go:
 	lda #0
 	sta $d020
 	jsr fileselector
-	sta filesize
-	stx filesize+1
-	lda file_is_movie
 	beq @program
 	jsr movie_player
 	jsr init_screen
@@ -160,8 +154,6 @@ file_go:
 	sta $d011
 	jmp @again
 @program:
-	lda filesize
-	ldx filesize+1
 	jsr loader
 	jmp start
 
