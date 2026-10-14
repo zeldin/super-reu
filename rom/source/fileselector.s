@@ -915,7 +915,12 @@ longfilename:
 	bcc @nooverflow
 	lda #$69
 @nooverflow:
-	sta filename+26
+	;; Fill the rest of the line to avoid artifacts with long filenames.
+	ldy #13
+@clearrest:
+	sta filename+13,y
+	dey
+	bpl @clearrest
 	jmp @oklong
 
 
