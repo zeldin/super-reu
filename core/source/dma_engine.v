@@ -103,6 +103,7 @@ module dma_engine(
 
 	 reg 	    running = 1'b0;
 	 reg 	    paused = 1'b0;
+	 reg	    halt_verify;
 	 reg [15:0] dma_a_save;
 	 reg [(ram_a_reg_bits-1):0] ram_a_save;
 	 reg [15:0] tcnt_save;
@@ -119,7 +120,7 @@ module dma_engine(
 	 assign dma_a_regs[chan] = dma_a_reg;
 	 assign ram_a_regs[chan] = ram_a_reg;
 	 assign ttypes[chan] = ttype;
-	 assign last_transfer[chan] = (tcnt == 16'h0001);
+	 assign last_transfer[chan] = (tcnt == 16'h0001) || halt_verify;
 	 assign runnings[chan] = running & ~paused;
 
 	 always @(posedge clk) begin
@@ -198,6 +199,7 @@ module dma_engine(
 		  delaycnt <= 16'h0001;
 		  subdelaycnt <= 8'h00;
 		  paused <= constrate | constdelay;
+		  halt_verify <= 1'b0;
 	       end
 
 	       if (running && phi2tick &&
@@ -217,17 +219,20 @@ module dma_engine(
 	       if (active_channel == chan) begin
 		  case (state)
 		    4'b0001: begin
-		       if (tcnt == 16'h0001) begin
+		       if (tcnt == 16'h0001)
+			 irq_eob <= 1'b1;
+		       else
+			 tcnt <= tcnt - 1;
+		       if (tcnt == 16'h0002 && halt_verify)
+			 irq_eob <= 1'b1;
+		       if (tcnt == 16'h0001 || halt_verify) begin
 			  running <= 1'b0;
 			  execute <= 1'b0;
-			  irq_eob <= 1'b1;
 			  if (load) begin
 			     dma_a_reg <= dma_a_save;
 			     ram_a_reg <= ram_a_save;
 			     tcnt <= tcnt_save;
 			  end
-		       end else begin
-			  tcnt <= tcnt - 1;
 		       end
 		    end
 		    4'b1000: // C64 -> RAM step 1
@@ -260,26 +265,22 @@ module dma_engine(
 			 if (constdelay)
 			   paused <= 1'b1;
 		      end
-		    4'b1111: // verify step 2
-		      if (dma_req_reg == dma_ack)
-			if (dma_q == ram_d_reg) begin
-			 if (~fix_dma_a)
-			   dma_a_reg <= dma_a_reg + 1;
+		    4'b1110: // verify step 1
+		      if (ram_req_reg == ram_ack) begin
 			 if (~fix_ram_a)
 			   ram_a_reg <= ram_a_reg + 1;
+		      end
+		    4'b1111: // verify step 2
+		      if (dma_req_reg == dma_ack) begin
+			 if (~fix_dma_a)
+			   dma_a_reg <= dma_a_reg + 1;
+			 if (dma_q != ram_d_reg) begin
+			   halt_verify <= 1'b1;
+			   irq_fault <= 1'b1;
+			 end
 			 if (constdelay)
 			   paused <= 1'b1;
-			end else begin
-			   running <= 1'b0;
-			   execute <= 1'b0;
-			   irq_fault <= 1'b1;
-			   if (load) begin
-			      // This is stupid, but compatible...
-			      dma_a_reg <= dma_a_save;
-			      ram_a_reg <= ram_a_save;
-			      tcnt <= tcnt_save;
-			   end
-			end // else: !if(dma_q == ram_d_reg)
+		      end
 		  endcase // case (state)
 	       end // if (active_channel == chan)
 	    end // else: !if(reset)
@@ -472,11 +473,7 @@ module dma_engine(
 	     end
 	   4'b1111: // verify step 2
 	     if (dma_req_reg == dma_ack) begin
-		if (dma_q == ram_d_reg) begin
-		   state <= 4'b0001;
-		end else begin
-		   state <= 4'b0000;
-		end
+		state <= 4'b0001;
 	     end
 
 	 endcase // case (state)
