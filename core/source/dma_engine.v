@@ -190,9 +190,10 @@ module dma_engine(
 		   4'he: subdelay <= d_d;
 		 endcase // case (a[3:0])
 
-	       if (~running &&
-		   ((write_strobe && a[7:4] == chan && a[3:0] == 4'h1 && d_d[7] && d_d[4]) ||
-		    (ff00_strobe & execute & ~ff00))) begin
+	       if (ff00_strobe & execute)
+		 ff00 <= 1'b1;
+
+	       if (~running && (execute & ff00)) begin
 		  dma_a_save <= dma_a_reg;
 		  ram_a_save <= ram_a_reg;
 		  tcnt_save <= tcnt;
