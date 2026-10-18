@@ -90,6 +90,8 @@ module dma_engine(
 	 reg 	    load = 1'b0;
 	 reg 	    ff00 = 1'b1;
 	 reg [1:0]  ttype = 2'b00;
+	 // A real REU reads back command bits 6, 3 and 2 as written.
+	 reg [2:0]  cmd_spare = 3'b000;
 	 reg [15:0] tcnt = 16'hffff;
 	 reg 	    irq_enable = 1'b0;
 	 reg 	    im_eob = 1'b0;
@@ -135,6 +137,7 @@ module dma_engine(
 	       load <= 1'b0;
 	       ff00 <= 1'b1;
 	       ttype <= 2'b00;
+	       cmd_spare <= 3'b000;
 	       tcnt <= 16'hffff;
 	       irq_enable <= 1'b0;
 	       im_eob <= 1'b0;
@@ -164,6 +167,7 @@ module dma_engine(
 		      load <= d_d[5];
 		      ff00 <= d_d[4];
 		      ttype <= d_d[1:0];
+		      cmd_spare <= { d_d[6], d_d[3:2] };
 		   end
 		   4'h2: dma_a_reg[7:0] <= d_d;
 		   4'h3: dma_a_reg[15:8] <= d_d;
@@ -295,7 +299,8 @@ module dma_engine(
 	      4'h0: begin
 		 d_q_val = { irq_pending, irq_eob, irq_fault, exp_512k, version };
 	      end
-	      4'h1: d_q_val = { execute, 1'b0, load, ff00, 2'b00, ttype };
+	      4'h1: d_q_val = { execute, cmd_spare[2], load, ff00,
+				cmd_spare[1:0], ttype };
 	      4'h2: d_q_val = dma_a_reg[7:0];
 	      4'h3: d_q_val = dma_a_reg[15:8];
 	      4'h4: d_q_val = ram_a_reg[7:0];
