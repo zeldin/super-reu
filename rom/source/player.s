@@ -68,8 +68,10 @@ movie_player:
 	jmp @nextframe
 
 @readblocked2:
-	lda #0
-	sta $df04
+	lda $df05		; back to the header, both bytes: see below
+	ldx #0
+	stx $df04
+	sta $df05
 @readblocked1:
 	lda #2
 	sta $d020
@@ -122,12 +124,15 @@ movie_player:
 	lda #$81
 	sta $df11,x
 
-@noaudioprep:	
-	lda #0
-	sta $df04
+@noaudioprep:
+	;; Back to the start of this frame's page and past its audio. Both
+	;; bytes are written: a write to one takes the other from what was
+	;; last written there, not from where the transfers have got to.
 	clc
 	lda $df05
 	adc frame_header+3
+	ldx #0
+	stx $df04
 	sta $df05
 	bcc @nowrap1
 	inc $df06
