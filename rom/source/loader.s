@@ -131,8 +131,8 @@ loader:
 	
 waitdma:
 	inc $d024
-	lda $df00
-	bpl waitdma
+	bit $df00
+	bvc waitdma
 	rts
 
 kbd_data:

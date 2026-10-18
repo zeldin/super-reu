@@ -246,8 +246,8 @@ end_of_movie:
 
 waitdma:
 	inc $d024
-	lda $df00
-	bpl waitdma
+	bit $df00
+	bvc waitdma
 	rts
 
 check_ntsc:
