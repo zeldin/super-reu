@@ -90,6 +90,8 @@ module dma_engine(
 	 reg 	    load = 1'b0;
 	 reg 	    ff00 = 1'b1;
 	 reg [1:0]  ttype = 2'b00;
+	 // A real REU reads back command bits 6, 3 and 2 as written.
+	 reg [2:0]  cmd_spare = 3'b000;
 	 reg [15:0] tcnt = 16'hffff;
 	 reg 	    irq_enable = 1'b0;
 	 reg 	    im_eob = 1'b0;
@@ -105,9 +107,12 @@ module dma_engine(
 	 reg 	    paused = 1'b0;
 	 reg	    halt_verify1;
 	 reg	    halt_verify2;
-	 reg [15:0] dma_a_save;
-	 reg [(ram_a_reg_bits-1):0] ram_a_save;
-	 reg [15:0] tcnt_save;
+	 // The address and length registers as last written, matching real
+	 // REU. Writing either byte loads the whole value into the counter,
+	 // and autoload loads it back.
+	 reg [15:0] dma_a_shadow = 16'h0000;
+	 reg [(ram_a_reg_bits-1):0] ram_a_shadow = {ram_a_reg_bits{1'b0}};
+	 reg [15:0] tcnt_shadow = 16'hffff;
 	 reg [15:0] delaycnt;
 	 reg [8:0]  subdelaycnt;
 
@@ -129,12 +134,16 @@ module dma_engine(
 	    if (reset) begin
 	       dma_a_reg <= 16'h0000;
 	       ram_a_reg <= def_ram_addr[(ram_a_reg_bits-1):0];
+	       dma_a_shadow <= 16'h0000;
+	       ram_a_shadow <= def_ram_addr[(ram_a_reg_bits-1):0];
+	       tcnt_shadow <= 16'hffff;
 	       irq_eob <= 1'b0;
 	       irq_fault <= 1'b0;
 	       execute <= 1'b0;
 	       load <= 1'b0;
 	       ff00 <= 1'b1;
 	       ttype <= 2'b00;
+	       cmd_spare <= 3'b000;
 	       tcnt <= 16'hffff;
 	       irq_enable <= 1'b0;
 	       im_eob <= 1'b0;
@@ -164,14 +173,36 @@ module dma_engine(
 		      load <= d_d[5];
 		      ff00 <= d_d[4];
 		      ttype <= d_d[1:0];
+		      cmd_spare <= { d_d[6], d_d[3:2] };
 		   end
-		   4'h2: dma_a_reg[7:0] <= d_d;
-		   4'h3: dma_a_reg[15:8] <= d_d;
-		   4'h4: ram_a_reg[7:0] <= d_d;
-		   4'h5: ram_a_reg[15:8] <= d_d;
-		   4'h6: ram_a_reg[(ram_a_reg_bits-1):16] <= d_d[(ram_a_reg_bits-17):0];
-		   4'h7: tcnt[7:0] <= d_d;
-		   4'h8: tcnt[15:8] <= d_d;
+		   4'h2: begin
+		      dma_a_shadow[7:0] <= d_d;
+		      dma_a_reg <= { dma_a_shadow[15:8], d_d };
+		   end
+		   4'h3: begin
+		      dma_a_shadow[15:8] <= d_d;
+		      dma_a_reg <= { d_d, dma_a_shadow[7:0] };
+		   end
+		   4'h4: begin
+		      ram_a_shadow[7:0] <= d_d;
+		      ram_a_reg[15:0] <= { ram_a_shadow[15:8], d_d };
+		   end
+		   4'h5: begin
+		      ram_a_shadow[15:8] <= d_d;
+		      ram_a_reg[15:0] <= { d_d, ram_a_shadow[7:0] };
+		   end
+		   4'h6: begin
+		      ram_a_shadow[(ram_a_reg_bits-1):16] <= d_d[(ram_a_reg_bits-17):0];
+		      ram_a_reg[(ram_a_reg_bits-1):16] <= d_d[(ram_a_reg_bits-17):0];
+		   end
+		   4'h7: begin
+		      tcnt_shadow[7:0] <= d_d;
+		      tcnt <= { tcnt_shadow[15:8], d_d };
+		   end
+		   4'h8: begin
+		      tcnt_shadow[15:8] <= d_d;
+		      tcnt <= { d_d, tcnt_shadow[7:0] };
+		   end
 		   4'h9: begin
 		      irq_enable <= d_d[7];
 		      im_eob <= d_d[6];
@@ -194,9 +225,6 @@ module dma_engine(
 		 ff00 <= 1'b1;
 
 	       if (~running && (execute & ff00)) begin
-		  dma_a_save <= dma_a_reg;
-		  ram_a_save <= ram_a_reg;
-		  tcnt_save <= tcnt;
 		  running <= 1'b1;
 		  delaycnt <= 16'h0001;
 		  subdelaycnt <= 8'h00;
@@ -229,9 +257,9 @@ module dma_engine(
 			  running <= 1'b0;
 			  execute <= 1'b0;
 			  if (load) begin
-			     dma_a_reg <= dma_a_save;
-			     ram_a_reg <= ram_a_save;
-			     tcnt <= tcnt_save;
+			     dma_a_reg <= dma_a_shadow;
+			     ram_a_reg <= ram_a_shadow;
+			     tcnt <= tcnt_shadow;
 			  end
 		       end else
 			 tcnt <= tcnt - 1;
@@ -295,7 +323,8 @@ module dma_engine(
 	      4'h0: begin
 		 d_q_val = { irq_pending, irq_eob, irq_fault, exp_512k, version };
 	      end
-	      4'h1: d_q_val = { execute, 1'b0, load, ff00, 2'b00, ttype };
+	      4'h1: d_q_val = { execute, cmd_spare[2], load, ff00,
+				cmd_spare[1:0], ttype };
 	      4'h2: d_q_val = dma_a_reg[7:0];
 	      4'h3: d_q_val = dma_a_reg[15:8];
 	      4'h4: d_q_val = ram_a_reg[7:0];
